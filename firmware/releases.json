@@ -1,55 +1,102 @@
-{
-  "version": "recon",
-  "build_date": "2026-11-19",
-  "firmwares": [
-    {
-      "name": "802eleven-recon.bin",
-      "board": "ESP32-S3 DevKitC-1",
-      "env": "802eleven-recon",
-      "sha256": "f81428bb787ff75f5a9d160093c25de35b2c886f5fa8a9d80db57222c9eb0212",
-      "size_bytes": 1797456
-    },
-    {
-      "name": "xiao-c5-recon.bin",
-      "board": "XIAO ESP32-C5",
-      "env": "xiao-c5-recon",
-      "sha256": "af4708e9d057dd5e92b7d89a77956faafd9767f10e0a3280b89049d0d5ffdfee",
-      "size_bytes": 2080464
-    },
-    {
-      "name": "t-dongle-c5-recon.bin",
-      "board": "LilyGO T-Dongle-C5",
-      "env": "t-dongle-c5-recon",
-      "sha256": "0de4fe55b92c8b5e8822a2bb61621eefe8ff58b13c859560932ae58eace61fd5",
-      "size_bytes": 2262560
-    },
-    {
-      "name": "cyd-24-recon.bin",
-      "board": "ESP32-2432S028R (CYD)",
-      "env": "cyd-24-recon",
-      "sha256": "f68b1f391b32921485cd6fa8f104952a3f29c16884ed24dedadc409aea0a346d",
-      "size_bytes": 2253888
-    },
-    {
-      "name": "cyd-c5-recon.bin",
-      "board": "NM-CYD-C5",
-      "env": "cyd-c5-recon",
-      "sha256": "154f321f5297c70295c6742529ef54db0cf3739a69860c01a10aa0b10a88a91a",
-      "size_bytes": 2543200
-    },
-    {
-      "name": "cardputer-recon.bin",
-      "board": "M5Stack Cardputer Adv",
-      "env": "cardputer-recon",
-      "sha256": "53dd0bbdce004489e55c4179e0a4003fb4edce3ebe9365161bda1fdb60d1ac77",
-      "size_bytes": 2380128
-    },
-    {
-      "name": "cardputer-gps-recon.bin",
-      "board": "M5Stack Cardputer Adv (GPS)",
-      "env": "cardputer-gps-recon",
-      "sha256": "2155432b6777969e6706c9384f9a02fd39ca66e46191c509f2245f0cd840e009",
-      "size_bytes": 2423344
-    }
-  ]
-}
+[
+  {
+    "id": "802eleven-recon-s3-v0.0.1",
+    "label": "802Eleven Recon - Primary ESP32-S3 v0.0.1",
+    "chip": "esp32-s3",
+    "role": "primary",
+    "files": [
+      {
+        "name": "802eleven-recon.bin",
+        "address": "0x0",
+        "url": "firmware/802eleven-recon.bin",
+        "sha256": "f81428bb787ff75f5a9d160093c25de35b2c886f5fa8a9d80db57222c9eb0212"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-recon-xiao-c5-v0.0.1",
+    "label": "802Eleven Recon - Primary ESP32-C5 (XIAO) v0.0.1",
+    "chip": "esp32-c5",
+    "role": "primary",
+    "files": [
+      {
+        "name": "xiao-c5-recon.bin",
+        "address": "0x0",
+        "url": "firmware/xiao-c5-recon.bin",
+        "sha256": "af4708e9d057dd5e92b7d89a77956faafd9767f10e0a3280b89049d0d5ffdfee"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-recon-tdongle-c5-v0.0.1",
+    "label": "802Eleven Recon - T-Dongle-C5 v0.0.1",
+    "chip": "esp32-c5",
+    "role": "primary",
+    "files": [
+      {
+        "name": "t-dongle-c5-recon.bin",
+        "address": "0x0",
+        "url": "firmware/t-dongle-c5-recon.bin",
+        "sha256": "0de4fe55b92c8b5e8822a2bb61621eefe8ff58b13c859560932ae58eace61fd5"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-recon-cyd-24-v0.0.1",
+    "label": "802Eleven Recon - CYD (ESP32-2432S028R) v0.0.1",
+    "chip": "esp32",
+    "role": "primary",
+    "files": [
+      {
+        "name": "cyd-24-recon.bin",
+        "address": "0x0",
+        "url": "firmware/cyd-24-recon.bin",
+        "sha256": "f68b1f391b32921485cd6fa8f104952a3f29c16884ed24dedadc409aea0a346d"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-recon-cyd-c5-v0.0.1",
+    "label": "802Eleven Recon - CYD-C5 v0.0.1",
+    "chip": "esp32-c5",
+    "role": "primary",
+    "files": [
+      {
+        "name": "cyd-c5-recon.bin",
+        "address": "0x0",
+        "url": "firmware/cyd-c5-recon.bin",
+        "sha256": "154f321f5297c70295c6742529ef54db0cf3739a69860c01a10aa0b10a88a91a"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-recon-cardputer-v0.0.1",
+    "label": "802Eleven Recon - Cardputer Adv v0.0.1",
+    "chip": "esp32-s3",
+    "role": "primary",
+    "sdcard": true,
+    "files": [
+      {
+        "name": "cardputer-recon.bin",
+        "address": "0x0",
+        "url": "firmware/cardputer-recon.bin",
+        "sha256": "53dd0bbdce004489e55c4179e0a4003fb4edce3ebe9365161bda1fdb60d1ac77"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-recon-cardputer-gps-v0.0.1",
+    "label": "802Eleven Recon - Cardputer Adv + GPS v0.0.1",
+    "chip": "esp32-s3",
+    "role": "primary",
+    "sdcard": true,
+    "files": [
+      {
+        "name": "cardputer-gps-recon.bin",
+        "address": "0x0",
+        "url": "firmware/cardputer-gps-recon.bin",
+        "sha256": "2155432b6777969e6706c9384f9a02fd39ca66e46191c509f2245f0cd840e009"
+      }
+    ]
+  }
+]
