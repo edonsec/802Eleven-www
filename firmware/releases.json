@@ -1,0 +1,103 @@
+[
+  {
+    "id": "802eleven-s3-v0.0.1",
+    "label": "802Eleven - Primary ESP32-S3 v0.0.1",
+    "chip": "esp32-s3",
+    "role": "primary",
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware-release/802eleven/firmware.factory.bin",
+        "sha256": "9135f3fdf5874ffaef945948975f72abbe457abfcbba0db5b2e0b712cf68c2aa"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-c5-v0.0.1",
+    "label": "802Eleven - Primary ESP32-C5 (XIAO) v0.0.1",
+    "chip": "esp32-c5",
+    "role": "primary",
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware-release/xiao-c5/firmware.factory.bin",
+        "sha256": "7eb264d29a6ba213a4b013889238b19e28038e89751f791b60d48fecff5265f8"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-tdongle-c5-v0.0.1",
+    "label": "802Eleven - T-Dongle-C5 v0.0.1",
+    "chip": "esp32-c5",
+    "role": "primary",
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware-release/t-dongle-c5/firmware.factory.bin",
+        "sha256": "db8406a5c6ca39feba4e69ba94524a76644549b4d686af0539b03fa3aa91f9e1"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-cyd-24-v0.0.1",
+    "label": "802Eleven - CYD (ESP32-2432S028R) v0.0.1",
+    "chip": "esp32",
+    "role": "primary",
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware-release/cyd-24/firmware.factory.bin",
+        "sha256": "8a005911f4c86d2bb9c505ca013fc1e3a0e4515aac4f06116df14e0cbc96d005"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-cyd-c5-v0.0.1",
+    "label": "802Eleven - CYD-C5 v0.0.1",
+    "chip": "esp32-c5",
+    "role": "primary",
+    "sdcard": true,
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware-release/cyd-c5/firmware.factory.bin",
+        "sha256": "de29c0cadf52eff5e9515e264739d18ed7d35fcc9e57c21e1ea9644b74cd6189"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-cardputer-v0.0.1",
+    "label": "802Eleven - Cardputer Adv v0.0.1",
+    "chip": "esp32-s3",
+    "role": "primary",
+    "sdcard": true,
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware-release/cardputer/firmware.factory.bin",
+        "sha256": "e6e852216c685ae40dac532ff8f60b767036369359c05be2905560168ae9ec2e"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-cardputer-gps-v0.0.1",
+    "label": "802Eleven - Cardputer Adv + GPS v0.0.1",
+    "chip": "esp32-s3",
+    "role": "primary",
+    "sdcard": true,
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware-release/cardputer-gps/firmware.factory.bin",
+        "sha256": "b95f5e597e3f2b89f22c3627e690b3acfb12af37145f933415a7a074b5511034"
+      }
+    ]
+  }
+]
