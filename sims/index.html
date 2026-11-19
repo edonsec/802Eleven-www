@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>802Eleven -- Device Simulators</title>
+<style>
+  /* Palette lifted from the firmware's own SynthwaveTheme (rgb565 -> rgb8,
+     see src/roles/cardputer/themes/SynthwaveTheme.h): deep indigo surface,
+     hot magenta primary, cyan accent, gold secondary. */
+  :root {
+    --bg0: #0a0420;
+    --bg1: #190073;
+    --panel: #150a3a;
+    --card: #1c0f4a;
+    --ink: #f2e9ff;
+    --sub: #a695c9;
+    --magenta: #ff2d40;
+    --cyan: #52ffff;
+    --gold: #ffb600;
+    --lav: #8c41de;
+    --track: #3a1a7a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100vh; width: 100%; overflow-x: hidden;
+    background: var(--bg0); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  body {
+    display: flex; flex-direction: column; align-items: center;
+    /* z-index (not just position) so body establishes its OWN stacking
+       context -- without it, .backdrop's z-index:-1 below is compared
+       against the ROOT context instead, and body's own opaque background
+       (painted at the root's normal/0 layer) ends up ON TOP of it, hiding
+       the entire backdrop (gradient, sun, mesh) permanently. */
+    position: relative; z-index: 0;
+  }
+
+  /* ---------------- synthwave backdrop: horizon grid + scanlines --------- */
+  .backdrop {
+    position: fixed; inset: 0; z-index: -1; overflow: hidden;
+    background: linear-gradient(180deg, #060215 0%, #08011f 35%, #05010f 75%, #020009 100%);
+  }
+  /* Rolling-hill wireframe mesh (perspective floor + sine-wave hills, faded
+     at its edges) -- same shape as the CYD firmware's menu background (see
+     MenuScreen::buildMeshBackground_/drawMeshBackground_), redrawn here in
+     canvas since there's no fixed-resolution screen to bake it for once. */
+  .mesh-bg {
+    position: absolute; left: 0; right: 0; bottom: -4%; height: 66%; width: 100%;
+    display: block;
+  }
+  .scanlines {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.18) 2px 4px);
+    mix-blend-mode: multiply; opacity: .5;
+  }
+
+  header {
+    width: 100%; max-width: 1100px; padding: 34px 20px 8px; text-align: center;
+  }
+  header .brand { font-size: 13px; letter-spacing: 4px; color: var(--cyan); text-transform: uppercase; text-shadow: 0 0 10px rgba(82,255,255,.6); }
+  header h1 {
+    margin: 8px 0 0; font-size: 30px; font-weight: 800; letter-spacing: 1px;
+    color: var(--ink); text-shadow: 0 0 14px rgba(255,45,64,.55), 0 0 28px rgba(255,45,64,.25);
+  }
+  header h1 span { color: var(--magenta); }
+  header p { margin: 8px 0 0; color: var(--sub); font-size: 13px; }
+
+  /* ---------------------------------------------------------------
+     Carousel of miniaturised device cards -- purely a picker. Each
+     card is a small decorative CSS mockup of the real chassis (not a
+     live sim instance); clicking opens the live sim in a modal.
+  --------------------------------------------------------------- */
+  .carousel-wrap {
+    width: 100%; max-width: 1100px; padding: 26px 8px 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .car-btn {
+    flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--track); color: var(--cyan);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; user-select: none; transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .car-btn:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(82,255,255,.5); }
+  .carousel {
+    flex: 1; min-width: 0; display: flex; justify-content: center; align-items: stretch;
+    gap: 18px; overflow: hidden; padding: 8px 0 16px; flex-wrap: wrap;
+  }
+  .devcard {
+    flex: 0 0 auto; width: 180px; border-radius: 14px; background: var(--card);
+    border: 1px solid var(--track); padding: 16px 14px 14px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    opacity: .6; transform: scale(.94);
+    transition: opacity .2s ease, transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+  .devcard:hover { opacity: .9; box-shadow: 0 0 18px rgba(140,65,222,.4); }
+  .devcard.active {
+    opacity: 1; transform: scale(1); border-color: var(--magenta);
+    box-shadow: 0 0 0 1px var(--magenta), 0 0 22px rgba(255,45,64,.45);
+  }
+  .devcard .mini { width: 100%; height: 92px; display: flex; align-items: center; justify-content: center; }
+  .devcard .name { font-weight: 700; font-size: 14px; color: var(--ink); }
+  .devcard .tag { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--sub); }
+  .devcard .tag.soon { color: var(--gold); }
+
+  /* mini Cardputer: same case/bezel/keycap palette as the real chassis art
+     in cardputer/index.html (case #5e5e66, black LCD bezel, orange mic dot,
+     orange/blue/green accent keycaps) -- not a separate placeholder design. */
+  .mini-cardputer {
+    width: 120px; border-radius: 10px; background: #5e5e66;
+    padding: 8px; box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  /* topstrip mirrors the real chassis's brand / screenbay / module layout
+     (cardputer/index.html's .topstrip) at scale: narrow brand + module
+     flanking a centered LCD, not a full-width bar. */
+  .mini-cardputer .topstrip { display: flex; gap: 2px; align-items: stretch; }
+  .mini-cardputer .brand { width: 22%; position: relative; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+  .mini-cardputer .mic { position: absolute; bottom: 1px; left: 1px; width: 4px; height: 4px; border-radius: 50%; background: #e2652c; }
+  .mini-cardputer .scr { flex: 1; height: 22px; border-radius: 2px; background: #101012; box-shadow: 0 0 6px rgba(82,255,255,.3) inset; }
+  .mini-cardputer .module { width: 22%; border-radius: 2px; background: #3c3c41; }
+  /* 4 thin key rows, 14 cols each like the real board's row length --
+     accents sit at the same positions as the real legend: orange esc/del
+     corners (row 1), blue Aa + green opt in column 2 (rows 3/4). */
+  .mini-cardputer .kb { display: grid; grid-template-columns: repeat(14, 1fr); gap: 1.5px; }
+  .mini-cardputer .kb span { height: 3px; border-radius: 1px; background: #1a1a1c; }
+  .mini-cardputer .kb span.orange { background: #e2652c; }
+  .mini-cardputer .kb span.blue   { background: #5b7fc4; }
+  .mini-cardputer .kb span.green  { background: #2fa87c; }
+
+  /* mini CYD: gold PCB edge + black bezel */
+  .mini-cyd { width: 90px; height: 110px; border-radius: 8px; background: linear-gradient(160deg, var(--gold), #b57e00); padding: 8px; display:flex; align-items:center; justify-content:center; }
+  .mini-cyd .bez { width: 100%; height: 100%; border-radius: 4px; background: #0a0a12; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 8px rgba(255,45,64,.35) inset; }
+  .mini-cyd .bez .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 6px rgba(82,255,255,.8); }
+
+  /* mini web: browser chrome (dots + url bar) over the dashboard's own ink */
+  .mini-web { width: 140px; height: 92px; border-radius: 8px; background: #0a0a12; padding: 0; overflow: hidden; box-shadow: 0 0 0 1px rgba(82,255,255,.25) inset; }
+  .mini-web .bar { height: 16px; background: #1c0f4a; display: flex; align-items: center; gap: 3px; padding: 0 6px; }
+  .mini-web .bar span { width: 6px; height: 6px; border-radius: 50%; background: var(--sub); }
+  .mini-web .bar span:nth-child(1) { background: var(--magenta); }
+  .mini-web .bar span:nth-child(2) { background: var(--gold); }
+  .mini-web .bar span:nth-child(3) { background: var(--cyan); }
+  .mini-web .scr { height: 76px; background: linear-gradient(160deg, #150a3a, #1c0f4a); position: relative; }
+  .mini-web .scr::after {
+    content: ''; position: absolute; inset: 8px 8px auto 8px; height: 4px; border-radius: 2px;
+    background: var(--cyan); box-shadow: 0 14px 0 var(--track), 0 28px 0 var(--track), 0 42px 0 var(--magenta);
+  }
+
+  /* mini T5 dongle: same cap/trim/shell/usb-connector stack as the real
+     chassis art in tdonglec5/index.html, just shrunk -- not a separate
+     placeholder design. */
+  .mini-t5 { width: 32px; height: 92px; display: flex; flex-direction: column; align-items: center; }
+  .mini-t5 .cap {
+    width: 100%; height: 10px; flex: 0 0 auto; margin-bottom: -1px;
+    border-radius: 10px 10px 0 0;
+    background: linear-gradient(165deg, rgba(255,255,255,.5), rgba(200,210,224,.15));
+    border: 1px solid rgba(255,255,255,.4); border-bottom: none;
+  }
+  .mini-t5 .trim { width: 100%; height: 2px; flex: 0 0 auto; background: linear-gradient(90deg, #16324f, #2a5c8f 45%, #16324f); }
+  .mini-t5 .shell {
+    width: 100%; flex: 1 1 auto; min-height: 0;
+    background: linear-gradient(160deg, rgba(255,255,255,.22), rgba(190,200,215,.06));
+    border: 1px solid rgba(255,255,255,.28); border-top: none; border-radius: 0 0 4px 4px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 4px 6px rgba(0,0,0,.25);
+  }
+  .mini-t5 .shell .scr { width: 90%; height: 90%; border-radius: 1px; background: #0a0a12; box-shadow: 0 0 4px rgba(255,182,0,.35) inset; }
+  .mini-t5 .usb {
+    width: 70%; height: 16px; flex: 0 0 auto; margin-top: -1px;
+    background: linear-gradient(100deg, #c7cbd1 0%, #eef0f3 30%, #b3b8bf 55%, #dfe2e6 80%, #a7acb3 100%);
+    border: 1px solid #7d838a; border-radius: 0 0 3px 3px;
+  }
+
+  footer {
+    color: var(--sub); font-size: 11px; padding: 10px 20px 30px; text-align: center;
+  }
+
+  /* -------------------------- modal -------------------------- */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    background: rgba(5,2,15,.82); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  /* No panel/box chrome -- the device chassis art floats directly over the
+     synthwave backdrop, dimmed by .modal-overlay's own scrim. */
+  .modal-box {
+    max-width: 96vw; max-height: 92vh; width: max-content;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .modal-head {
+    flex: 0 0 auto; width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 6px 14px;
+  }
+  .modal-head .mt { font-weight: 700; font-size: 13px; color: var(--cyan); text-shadow: 0 0 8px rgba(82,255,255,.5); }
+  .modal-close {
+    width: 28px; height: 28px; border-radius: 50%; background: rgba(28,15,74,.6);
+    border: 1px solid var(--track); color: var(--ink); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; line-height: 1;
+  }
+  .modal-close:hover { border-color: var(--magenta); box-shadow: 0 0 10px rgba(255,45,64,.5); }
+  .modal-body {
+    flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* Sim pages have fixed pixel chassis art (not responsive to an arbitrary
+     iframe box) -- render at natural size, then scale down with a CSS
+     transform. A transform doesn't shrink the element's LAYOUT box (only
+     its paint), so the iframe sits in a same-size viewport wrapper whose
+     box == the scaled visual size; centering the iframe itself inside a
+     flex parent would crop it (flex measures the pre-transform box). */
+  .sim-viewport {
+    position: relative; overflow: hidden; flex: none;
+  }
+  .sim-viewport iframe {
+    position: absolute; top: 0; left: 0; border: 0; background: #08040f;
+    transform-origin: top left;
+  }
+  .soon-panel {
+    width: 360px; max-width: 80vw; padding: 40px 24px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; color: var(--sub); text-align: center;
+  }
+  .soon-panel .big { font-size: 18px; font-weight: 800; color: var(--ink); }
+  .soon-panel .sub { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="backdrop">
+  <canvas class="mesh-bg" id="meshBg"></canvas>
+  <div class="scanlines"></div>
+</div>
+
+<header>
+  <div class="brand">802ELEVEN</div>
+  <h1>Device <span>Simulators</span></h1>
+  <p>Pick a board to run its browser simulator. No hardware required.</p>
+</header>
+
+<div class="carousel-wrap">
+  <div class="car-btn" id="prevBtn">&larr;</div>
+  <div class="carousel" id="carousel">
+    <div class="devcard active" data-dev="web">
+      <div class="mini">
+        <div class="mini-web">
+          <div class="bar"><span></span><span></span><span></span></div>
+          <div class="scr"></div>
+        </div>
+      </div>
+      <div class="name">Web Dashboard</div>
+      <div class="tag">Browser</div>
+    </div>
+
+    <div class="devcard" data-dev="cardputer">
+      <div class="mini">
+        <div class="mini-cardputer">
+          <div class="topstrip">
+            <div class="brand"><div class="mic"></div></div>
+            <div class="scr"></div>
+            <div class="module"></div>
+          </div>
+          <div class="kb">
+            <span class="orange"></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span><span class="orange"></span>
+          </div>
+          <div class="kb">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="kb">
+            <span></span><span class="blue"></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="kb">
+            <span></span><span class="green"></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+      <div class="name">Cardputer ADV</div>
+      <div class="tag">M5Stack</div>
+    </div>
+
+    <div class="devcard" data-dev="cyd">
+      <div class="mini">
+        <div class="mini-cyd"><div class="bez"><div class="dot"></div></div></div>
+      </div>
+      <div class="name">CYD</div>
+      <div class="tag">Cheap Yellow Display</div>
+    </div>
+
+    <div class="devcard" data-dev="cydc5">
+      <div class="mini">
+        <div class="mini-cyd"><div class="bez"><div class="dot"></div></div></div>
+      </div>
+      <div class="name">CYD C5</div>
+      <div class="tag">Dual-band 2.4 / 5GHz</div>
+    </div>
+
+    <div class="devcard" data-dev="t5dongle">
+      <div class="mini">
+        <div class="mini-t5">
+          <div class="cap"></div>
+          <div class="trim"></div>
+          <div class="shell"><div class="scr"></div></div>
+          <div class="usb"></div>
+        </div>
+      </div>
+      <div class="name">T5 Dongle</div>
+      <div class="tag">LilyGO T-Dongle-C5</div>
+    </div>
+
+  </div>
+  <div class="car-btn" id="nextBtn">&rarr;</div>
+</div>
+
+<footer>Click a device to launch its simulator. Esc or click outside to close.</footer>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-head">
+      <div class="mt" id="modalTitle">Cardputer ADV</div>
+      <div class="modal-close" id="modalClose">&times;</div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var canvas = document.getElementById('meshBg');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+
+    function draw() {
+      try { drawInner(); } catch (err) { console.error('meshBg draw failed:', err); }
+    }
+
+    function drawInner() {
+      var w = canvas.clientWidth, h = canvas.clientHeight;
+      if (!w || !h) return;
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      var COLS = 28, ROWS = 34, PI2 = Math.PI * 2, MAX_TINT = 0.16;
+      var PERSPECTIVE_POW = 1.3, CONVERGE_POW = 0.7, OVERSCAN = 1.9;
+      var colGap = w / COLS;
+      var vx = w * 0.5;
+
+      function rowY(t) { return h * Math.pow(t, PERSPECTIVE_POW); }
+      function colX(c, t) {
+        var xFull = vx + (c * colGap - vx) * OVERSCAN;
+        return vx + (xFull - vx) * Math.pow(t, CONVERGE_POW);
+      }
+      function hillAt(x, t) {
+        var flow = x + (1 - t) * 46;
+        var hill = 26 * Math.sin(PI2 * flow / w * 0.85 + 0.4) +
+                   12 * Math.sin(PI2 * flow / w * 1.7 + 1.7) +
+                   6 * Math.sin(PI2 * flow / w * 2.6 - 0.9);
+        return hill * t;
+      }
+      function edgeFade(x, y) {
+        var marginX = w * 0.04, marginY = h * 0.22;
+        var e = Math.min(x / marginX, (w - x) / marginX, y / marginY, (h - y) / marginY, 1);
+        e = Math.max(0, e);
+        return e * e;
+      }
+      function seg(x0, y0, x1, y1, t, fade) {
+        ctx.strokeStyle = 'rgba(82,255,255,' + (t * MAX_TINT * fade).toFixed(3) + ')';
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      }
+
+      ctx.lineWidth = 1;
+      for (var r = 0; r <= ROWS; r++) {
+        var t = r / ROWS;
+        if (t < 0.06) continue;
+        var baseY = rowY(t);
+        var px = colX(0, t), prevX = px, prevY = baseY + hillAt(px, t);
+        for (var c = 1; c <= COLS; c++) {
+          var xf = colX(c, t);
+          var y = baseY + hillAt(xf, t);
+          var fade = 0.5 * (edgeFade(prevX, prevY) + edgeFade(xf, y));
+          seg(prevX, prevY, xf, y, t, fade);
+          prevX = xf; prevY = y;
+        }
+      }
+      for (var c2 = 0; c2 <= COLS; c2++) {
+        var pX = colX(c2, 0), pY = rowY(0);
+        for (var r2 = 1; r2 <= ROWS; r2++) {
+          var t2 = r2 / ROWS;
+          var xf2 = colX(c2, t2);
+          var y2 = rowY(t2) + hillAt(xf2, t2);
+          if (t2 >= 0.06) {
+            var fade2 = 0.5 * (edgeFade(pX, pY) + edgeFade(xf2, y2));
+            seg(pX, pY, xf2, y2, t2, fade2);
+          }
+          pX = xf2; pY = y2;
+        }
+      }
+    }
+
+    var raf = null;
+    function scheduleDraw() {
+      if (raf) return;
+      raf = requestAnimationFrame(function () { raf = null; draw(); });
+    }
+    window.addEventListener('resize', scheduleDraw);
+    window.addEventListener('load', scheduleDraw);
+    scheduleDraw();
+  })();
+
+  var DEVICES = {
+    web:       { title: 'Web Dashboard', src: 'web/index.html',             w: 1200, h: 800, resizeIframe: true },
+    cardputer: { title: 'Cardputer ADV', src: 'cardputer-recon/index.html', w: 800, h: 800 },
+    cyd:       { title: 'CYD',           src: 'cyd-recon/index.html',       w: 620, h: 820, raw: { w: 1000, h: 1000 }, dynamic: true },
+    cydc5:     { title: 'CYD C5',        src: 'cydc5-recon/index.html',     w: 620, h: 820, raw: { w: 1000, h: 1000 }, dynamic: true },
+    t5dongle:  { title: 'T5 Dongle',     src: 'tdonglec5-recon/index.html', w: 520, h: 420, raw: { w: 950, h: 1000 }, dynamic: true },
+  };
+  var order = ['web', 'cardputer', 'cyd', 'cydc5', 't5dongle'];
+  var current = 'web';
+
+  var carousel = document.getElementById('carousel');
+  var cards = {};
+  order.forEach(function (id) {
+    cards[id] = carousel.querySelector('[data-dev="' + id + '"]');
+    cards[id].addEventListener('click', function () { highlight(id); openModal(id); });
+  });
+
+  function highlight(id) {
+    current = id;
+    order.forEach(function (k) { cards[k].classList.toggle('active', k === id); });
+  }
+
+  function step(dir) {
+    var idx = order.indexOf(current);
+    idx = (idx + dir + order.length) % order.length;
+    highlight(order[idx]);
+  }
+  document.getElementById('prevBtn').addEventListener('click', function () { step(-1); });
+  document.getElementById('nextBtn').addEventListener('click', function () { step(1); });
+  window.addEventListener('keydown', function (e) {
+    if (modalOverlay.classList.contains('open')) {
+      if (e.key === 'Escape') closeModal();
+      return;
+    }
+    if (e.key === 'ArrowLeft') step(-1);
+    else if (e.key === 'ArrowRight') step(1);
+    else if (e.key === 'Enter') openModal(current);
+  });
+
+  var modalOverlay = document.getElementById('modalOverlay');
+  var modalBox = document.getElementById('modalBox');
+  var modalBody = document.getElementById('modalBody');
+  var modalTitle = document.getElementById('modalTitle');
+  var activeViewport = null;
+  var activeIframe = null;
+  var activeNat = null;
+  var activeDev = null;
+
+  function fitIframe() {
+    if (!activeViewport || !activeIframe || !activeNat) return;
+    var availW = window.innerWidth * 0.85;
+    var availH = window.innerHeight * 0.78;
+    var scale = Math.min(1, availW / activeNat.w, availH / activeNat.h);
+    var x = activeNat.x || 0, y = activeNat.y || 0;
+    activeIframe.style.transform =
+      'translate(' + Math.round(-x * scale) + 'px,' + Math.round(-y * scale) + 'px) scale(' + scale + ')';
+    activeViewport.style.width = Math.round(activeNat.w * scale) + 'px';
+    activeViewport.style.height = Math.round(activeNat.h * scale) + 'px';
+  }
+
+  function openModal(id) {
+    var dev = DEVICES[id];
+    modalTitle.textContent = dev.title;
+    modalBody.innerHTML = '';
+    activeViewport = null;
+    activeIframe = null;
+    activeNat = null;
+    activeDev = dev;
+
+    if (dev.soon) {
+      var p = document.createElement('div');
+      p.className = 'soon-panel';
+      p.innerHTML = '<div class="big">' + dev.title + ' simulator coming soon</div>' +
+        '<div class="sub">This board is on the roadmap but has no browser sim yet. Try Cardputer ADV or CYD instead.</div>';
+      modalBody.appendChild(p);
+    } else {
+      var viewport = document.createElement('div');
+      viewport.className = 'sim-viewport';
+      var iframe = document.createElement('iframe');
+      iframe.src = dev.src;
+      var raw = dev.raw || { w: dev.w, h: dev.h };
+      iframe.style.width = raw.w + 'px';
+      iframe.style.height = raw.h + 'px';
+      viewport.appendChild(iframe);
+      modalBody.appendChild(viewport);
+      activeViewport = viewport;
+      activeIframe = iframe;
+      activeNat = { w: dev.w, h: dev.h, x: 0, y: 0 };
+      fitIframe();
+    }
+
+    modalOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('open');
+    modalBody.innerHTML = '';
+    activeViewport = null;
+    activeIframe = null;
+    activeNat = null;
+    activeDev = null;
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', function (e) {
+    if (e.target === modalOverlay) closeModal();
+  });
+  window.addEventListener('resize', fitIframe);
+
+  window.addEventListener('message', function (e) {
+    if (!activeIframe || e.source !== activeIframe.contentWindow) return;
+    var data = e.data;
+    if (!data || data.type !== 'simSize' || !data.w || !data.h) return;
+    if (activeDev && activeDev.resizeIframe) {
+      activeIframe.style.width = data.w + 'px';
+      activeIframe.style.height = data.h + 'px';
+      activeNat = { w: data.w, h: data.h, x: 0, y: 0 };
+    } else {
+      activeNat = { w: data.w, h: data.h, x: data.x || 0, y: data.y || 0 };
+    }
+    fitIframe();
+  });
+</script>
+</body>
+</html>

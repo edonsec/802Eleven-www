@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>802Eleven</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+
+<canvas id="mesh" aria-hidden="true"></canvas>
+<div class="scrim" aria-hidden="true"></div>
+<div class="synth-grid" aria-hidden="true"></div>
+
+<main>
+  <h1 class="wordmark"><span class="a">802</span><span class="b">Eleven</span></h1>
+  <p class="tagline">An 802.11 (WiFi) toolkit.</p>
+
+  <nav class="pills">
+    <a class="pill featbtn" href="#features">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      Features
+    </a>
+    <a class="pill supported" href="#supported">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>
+      Supported
+    </a>
+    <a class="pill install" href="#install">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      Install
+    </a>
+    <a class="pill sims" href="#sims">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+      Sims
+    </a>
+  </nav>
+
+  <div class="disclaimer">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.6 8 11 4.6-2.4 8-6 8-11V5z"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.6" fill="currentColor" stroke="none"/></svg>
+    <div class="disclaimer-text">
+      <p><strong>This tool is intended for security research and WiFi analysis and contains offensive capabilities</strong>. Use it only against networks and devices you own or have explicit authorisation to test. The author does not condone its use for malicious or unauthorised purposes. Always comply with all applicable local laws and regulations &mdash; you are solely responsible for how you use this tool.</p>
+      <p>This tool is provided "as is", without warranty of any kind, and the author accepts no responsibility or liability for any damage, loss, or legal consequence arising from its use.</p>
+    </div>
+  </div>
+</main>
+
+<section class="pane" id="features">
+  <h2>What it <span class="hl">does</span></h2>
+  <p class="lede">802Eleven is a WiFi toolkit designed for network analysis and security oriented testing. When used with a standalone device, it provides a streamlined UI to observe, analyse, defend and simulate attacks against authorised networks. <p>
+
+  <div class="feat-group observe">
+    <div class="feat-group-head"><span class="feat-group-tag">OBSERVE</span><h3>Passive monitoring and discovery</h3></div>
+    <div class="features">
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 12 L18 7"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></span>
+        <div class="body"><h3>Proximity radar</h3><p>Observe your networks and their associated stations in an interactive radar, showing relative positions of devices based on approximate signal strength.</p></div>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
+        <div class="body"><h3>Cloaked&#8209;network reveal</h3><p>Unmask hidden SSIDs broadcasting in your proximity.</p></div>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3 3 12h6l-2 9 14-11h-7z"/></svg></span>
+        <div class="body"><h3>Targeted Channel Selection</h3><p>Apply granular control over captured channels and frame types.</p></div>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6"/><path d="M8 20v-3"/><path d="M16 20v-9"/><path d="M4 20v-1.5"/><path d="M20 20v-13"/></svg></span>
+        <div class="body"><h3>5GHz dual&#8209;band support</h3><p>Capture across both 2.4&nbsp;GHz and 5&nbsp;GHz with independent channel selection. <em>(ESP32&#8209;C5 boards)</em></p></div>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span>
+        <div class="body"><h3>GPS&#8209;tagged discovery</h3><p>Tag discovered SSIDs with GPS coordinates.<em>(requires GPS module + SD card on Cardputer Adv)</em></p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="feat-group defend">
+    <div class="feat-group-head"><span class="feat-group-tag">DEFEND</span><h3>Passive threat detection</h3></div>
+    <div class="features">
+      <div class="feature sentinel">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.6 8 11 4.6-2.4 8-6 8-11V5z"/><path d="M12 8v3l2 1.5"/></svg></span>
+        <div class="body"><h3>Deauth sentinel</h3><p>Detects nearby deauthentication attacks, be alerted to their presence.</p></div>
+      </div>
+      <div class="feature sentinel">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v7a6 6 0 0 0 12 0V4"/><path d="M3 4h6"/><path d="M15 4h6"/></svg></span>
+        <div class="body"><h3>Karma sentinel</h3><p>Flags access points that respond indiscriminately to client probe requests, a hallmark of KARMA attacks.</p></div>
+      </div>
+      <div class="feature sentinel">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5A7 7 0 0 1 19 12.5"/><path d="M2 9a11 11 0 0 1 20 0"/><path d="M8 16a4 4 0 0 1 8 0"/><path d="M12 20v-4"/><path d="M1.5 1.5l21 21"/></svg></span>
+        <div class="body"><h3>Rogue Device sentinel</h3><p>Identify nearby suspicious devices and rogue devices.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="feat-group simulate">
+    <div class="feat-group-head"><span class="feat-group-tag">SIMULATE</span><h3>Test active methodology against your own infrastructure</h3></div>
+    <div class="features">
+      <div class="feature warn">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3 3 18l-1 3 3-1L16.7 8.3z"/><path d="M13 5l3-3 3 3-3 3z"/></svg></span>
+        <div class="body"><h3>Frame crafting</h3><p>Craft and send raw 802.11 frames, including modification for most headers. Detect flaws within your device's wifi frame parsing by tweaking Information Element (IE) lengths.</p></div>
+      </div>
+      <div class="feature warn">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="18" height="7" rx="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="14" r="1.4" fill="currentColor" stroke="none"/></svg></span>
+        <div class="body"><h3>Local AP</h3><p>Deploy a custom access point and capture client DNS requests. Gain the insight to how your device behaves on a network.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="feat-group configure">
+    <div class="feat-group-head"><span class="feat-group-tag">CONFIGURE</span><h3>Interfaces, filters, and preferences</h3></div>
+    <div class="features">
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="1.5"/><path d="M8 20h8M12 18v2"/></svg></span>
+        <div class="body"><h3>Web dashboard</h3><p>Browser&#8209;based interface for monitoring and controlling the device over the board's own WiFi AP.</p></div>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg></span>
+        <div class="body"><h3>Frame filtering</h3><p>Target only the channels and frame types you want to analyse.</p></div>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M7 8h2M7 12h2M7 16h6"/></svg></span>
+        <div class="body"><h3>Serial interface</h3><p>Control the device over USB/UART, freeing the radio and dedicating it to wifi scanning. <em>Supported devices only.</em></p></div>
+      </div>
+      <div class="feature">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18 4.5 4.5 0 0 1-4.5-4.5c0-1 1-1.5 1-2.5S7.5 12 7.5 11 8 9 9.5 9 11 8 11 6.5A4.5 4.5 0 0 1 12 3z" fill="currentColor" stroke="none"/></svg></span>
+        <div class="body"><h3>Themes</h3><p>Choose from a variety of colour profiles.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pane" id="supported">
+  <h2>Supported <span class="hl">hardware</span></h2>
+  <p class="lede">Several ESP32 boards are currently supported, each with its own unique features and capabilities.</p>
+
+  <div class="feat-bar" role="tablist" aria-label="Filter by feature">
+    <button type="button" class="feat-chip active" data-feat="all" aria-selected="true">All</button>
+    <button type="button" class="feat-chip" data-feat="web" aria-selected="false">Web UI</button>
+    <button type="button" class="feat-chip" data-feat="sdcard" aria-selected="false">SD Card</button>
+    <button type="button" class="feat-chip" data-feat="gps" aria-selected="false">GPS</button>
+    <button type="button" class="feat-chip" data-feat="dual" aria-selected="false">Dual&#8209;band</button>
+    <button type="button" class="feat-chip" data-feat="sentinel" aria-selected="false">Sentinel</button>
+  </div>
+
+  <h3 class="feat-group-h">Primary boards</h3>
+  <div class="cards feat-cards">
+    <div class="card wifi" data-feats="web scout" data-release-id="802eleven-s3-v0.0.1">
+      <span class="body">
+        <h3>ESP32&#8209;S3 DevKitC&#8209;1</h3>
+        <p>Primary build. Standalone or paired with a 2nd board as a Scout.</p>
+        <div class="feat-tags"></div>
+      </span>
+    </div>
+    <div class="card wifi" data-feats="web dual scout" data-release-id="802eleven-c5-v0.0.1">
+      <span class="body">
+        <h3>Seeed XIAO ESP32&#8209;C5</h3>
+        <p>Thumb&#8209;sized dual&#8209;band (2.4/5&nbsp;GHz) primary/base build. Also runs as a Scout. Please see below.</p>
+        <div class="feat-tags"></div>
+      </span>
+    </div>
+    <div class="card cardputer" data-feats="web sentinel sdcard gps" data-release-id="802eleven-cardputer-v0.0.1">
+      <span class="body">
+        <h3>M5Stack Cardputer Adv</h3>
+        <p>Fully featured build with Cardputer centric UI and support for Sentinel and frame crafting. Wire up a GPS module and flash the <code>-gps</code> image to add GPS&#8209;tagged GPS logging.</p>
+        <div class="feat-tags"></div>
+      </span>
+    </div>
+    <div class="card cyd" data-feats="web sentinel sdcard" data-release-id="802eleven-cyd-24-v0.0.1">
+      <span class="body">
+        <h3>CYD (Cheap Yellow Display)</h3>
+        <p>Touchscreen centric UI, 2.4Ghz support only and no GPS.</p>
+        <div class="feat-tags"></div>
+      </span>
+    </div>
+    <div class="card cyd" data-feats="web sentinel sdcard dual" data-release-id="802eleven-CYD-C5-v0.0.1">
+      <span class="body">
+        <h3>CYD&#8209;C5</h3>
+        <p>Cheap Yellow Display on ESP32&#8209;C5, same as the standard build but supports dual&#8209;band (2.4/5&nbsp;GHz) and takes advantage of the improved hardware with an animated radial menu.</p>
+        <div class="feat-tags"></div>
+      </span>
+    </div>
+    <div class="card tdongle" data-feats="web sentinel sdcard dual" data-release-id="802eleven-tdongle-C5-v0.0.1">
+      <span class="body">
+        <h3>T&#8209;Dongle&#8209;C5</h3>
+        <p>Pocket dongle form factor, dual&#8209;band (2.4/5&nbsp;GHz), tiny screen. Standalone Sentinel and Web application.</p>
+        <div class="feat-tags"></div>
+      </span>
+    </div>
+  </div>
+
+  <h3 class="feat-group-h">Scout companions <span class="feat-group-sub">optional 2nd board &mdash; continuous monitor&#8209;mode capture, streamed to a paired primary</span></h3>
+  <div class="cards feat-cards">
+    <div class="card wifi" data-feats="sentinel" data-release-id="802eleven-scout-s3-v0.0.1">
+      <span class="body">
+        <h3>ESP32&#8209;S3 DevKitC&#8209;1</h3>
+        <p>Scout build which pairs with the primary S3 over UART. No Web UI of its own.</p>
+        <div class="feat-tags"></div>
+      </span>
+    </div>
+    <div class="card wifi" data-feats="sentinel dual" data-release-id="802eleven-scout-c5-v0.0.1">
+      <span class="body">
+        <h3>Seeed XIAO ESP32&#8209;C5</h3>
+        <p>Scout build, dual&#8209;band (2.4/5&nbsp;GHz) hop &mdash; same board as the Primary image above, UART remapped to the XIAO's D6/D7 pins.</p>
+        <div class="feat-tags"></div>
+      </span>
+    </div>
+  </div>
+  <div class="hint-box">Every currently supported device above also has a browser sim &mdash; see the <a href="#sims">Sims</a> section.</div>
+</section>
+
+<section class="pane" id="install">
+  <h2>Get it <span class="hl">running</span></h2>
+  <p class="lede">Flash straight from this page &mdash; including being provided your board's random WiFi password.</p>
+
+  <div class="webflash">
+    <div class="wf-card">
+      <div class="wf-card-head"><span class="wf-num">1</span><h3>Choose your image</h3></div>
+
+      <div class="wf-release-row" id="wfReleaseRow" hidden>
+        <label class="wf-file-label" for="wfRelease">Prebuilt</label>
+        <select id="wfRelease" class="wf-select">
+          <option value="">Use my own firmware file&hellip;</option>
+        </select>
+        <button type="button" class="wf-dl-btn" id="wfReleaseDownload" title="Download the .bin instead of flashing from here" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        </button>
+        <span class="wf-dim" id="wfReleaseHint"></span>
+      </div>
+
+      <div id="wfManualFiles">
+        <div class="wf-file-row">
+          <label class="wf-file-input wf-file-input-lg"><input type="file" id="wfFileMerged" accept=".bin"><span id="wfFileMergedName">Choose firmware .bin&hellip;</span></label>
+        </div>
+
+        <details class="wf-advanced" id="wfAdvanced">
+          <summary>Advanced: bootloader / partitions / custom offsets</summary>
+          <div class="wf-file-row">
+            <span class="wf-file-label">Image 1 offset</span>
+            <input type="text" class="wf-addr" id="wfAddrMerged" value="0x0" aria-label="Image 1 flash offset">
+            <span class="wf-dim">Default <code>0x0</code> is right for a full/merged image. Change it if the file above is just one partition (e.g. a bare <code>firmware.bin</code> app image).</span>
+          </div>
+          <div id="wfExtraFiles"></div>
+          <div class="wf-add-row">
+            <button type="button" class="serial-btn ghost small" data-addpreset="0x0">+ Bootloader (0x0)</button>
+            <button type="button" class="serial-btn ghost small" data-addpreset="0x8000">+ Partitions (0x8000)</button>
+            <button type="button" class="serial-btn ghost small" data-addpreset="0x10000">+ App (0x10000)</button>
+            <button type="button" class="serial-btn ghost small" data-addpreset="">+ Custom offset</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="wf-danger">
+        <label class="wf-erase"><input type="checkbox" id="wfErase"><span class="wf-checkbox-box" aria-hidden="true"></span><span>Erase flash first <span class="wf-dim">&mdash; recommended when coming from different firmware</span></span></label>
+        <p class="wf-erase-warn" id="wfEraseWarn" hidden>&#9888; If this board ran 802Eleven before, erasing wipes its saved settings &mdash; discovered/hidden-network history, saved WiFi password, and any custom UI password all reset to firmware defaults.</p>
+      </div>
+    </div>
+
+    <div class="wf-card">
+      <div class="wf-card-head"><span class="wf-num">2</span><h3>Flash</h3></div>
+
+      <div class="install-mode-tabs">
+        <button class="install-mode-tab active" data-mode="webinstall">Web Install</button>
+        <button class="install-mode-tab" data-mode="manual">Manual (esptool)</button>
+      </div>
+
+      <div class="install-mode-panel" data-mode-panel="webinstall">
+        <p class="wf-lede">Flash straight from this page over <strong>Web Serial</strong>.</p>
+        <p class="wf-lede wf-browser-warn" id="wfBrowserWarn" hidden>&#9888; This browser doesn't support Web Serial. Use the <b>Manual (esptool)</b> tab instead.</p>
+
+        <div class="wf-actions">
+          <button class="serial-btn" id="wfConnect">Connect to board&hellip;</button>
+          <button class="serial-btn primary" id="wfFlash" disabled hidden>Flash</button>
+          <button class="serial-btn ghost" id="wfDisconnect" disabled hidden>Disconnect</button>
+        </div>
+        <div class="wf-progress-row" hidden>
+          <span class="serial-status" id="wfStatus"></span>
+          <div class="wf-progress" id="wfProgress" hidden>
+            <div class="wf-progress-bar"><div class="wf-progress-fill" id="wfProgressFill"></div></div>
+            <span class="wf-progress-pct" id="wfProgressPct">0%</span>
+          </div>
+        </div>
+        <details class="wf-terminal" hidden>
+          <summary>Terminal output</summary>
+          <div class="serial-log wf-log-target" id="wfLog"></div>
+        </details>
+      </div>
+
+      <div class="install-mode-panel" data-mode-panel="manual" hidden>
+        <p class="wf-lede">For a non-Chromium browser, or scripted/repeat flashing.</p>
+
+        <div class="cmd-block">
+          <h4>Install esptool</h4>
+          <pre>pip install esptool</pre>
+          <button class="cmd-copy" type="button" data-copytext="pip install esptool">Copy</button>
+        </div>
+
+        <div class="cmd-block">
+          <h4>Flash</h4>
+          <pre id="manualFlashCmd">esptool.py --chip esp32s3 --port COMx --baud 460800 write_flash 0x0 firmware-merged.bin</pre>
+          <button class="cmd-copy" type="button" id="manualFlashCopy" data-copytext="esptool.py --chip esp32s3 --port COMx --baud 460800 write_flash 0x0 firmware-merged.bin">Copy</button>
+        </div>
+        <p class="wf-dim" id="manualEraseNote" hidden>&#9888; Includes <code>--erase-all</code> &mdash; "Erase flash first" is checked in step 1.</p>
+      </div>
+    </div>
+
+    <div class="wf-card wf-card-accent" id="wfPostFlash" hidden>
+      <div class="wf-card-head"><span class="wf-num">3</span><h3 id="wfStage3Title">Join &amp; open the dashboard</h3></div>
+
+      <div class="wf-server-note" id="wfSdcardNote" hidden>
+        <span>This board supports a microSD card (heap-relief log, snapshots, full OUI lookup). Grab the starter pack: <a id="wfSdcardLink" href="firmware/sdcard.zip" download>sdcard.zip</a></span>
+      </div>
+
+      <div class="wf-tabs" id="wfTabs">
+        <button class="wf-tab active" data-wftab="wifi">Join WiFi</button>
+        <button class="wf-tab" data-wftab="dash">Dashboard</button>
+        <button class="wf-tab" data-wftab="console">Console</button>
+      </div>
+
+      <div class="wf-card" id="wfScoutPins" hidden>
+        <p class="wf-dim" style="margin:0 0 8px">Scout boards have no WiFi AP or dashboard &mdash; wire it to a primary board's UART pins:</p>
+        <table class="wf-pin-table" id="wfScoutPinTable"></table>
+      </div>
+
+      <div class="wf-tab-panel" data-wftabpanel="wifi">
+        <div class="wf-server-note" id="wfServerNote" hidden>
+          <span id="wfServerNoteText"></span>
+        </div>
+        <div class="qr-box qr-click" id="wfQrWifiBox" style="display:none;" role="button" tabindex="0" title="Click to show/hide QR"><div id="wfQrWifi"></div><div class="qr-cover">Click to reveal<small>QR contains the WiFi password</small></div></div>
+        <div class="wf-cred-grid" id="wfCreds">
+          <div class="wf-cred-row wf-cred-pending" id="wfCredsPending">Reading WiFi credentials from the boot log&hellip;</div>
+        </div>
+      </div>
+
+      <div class="wf-tab-panel" data-wftabpanel="dash" hidden>
+        <div class="qr-box" id="wfQrDashBox"><div id="wfQrDash"></div></div>
+        <div class="wf-cred-grid">
+          <div class="wf-cred-row">
+            <span class="wf-cred-label">IP Address</span>
+            <span class="wf-cred-value"><code id="wfDashIp">http://192.168.4.1/</code><button class="wf-copy" id="wfDashIpCopy" data-copyval="http://192.168.4.1/">Copy</button></span>
+          </div>
+          <div class="wf-cred-row">
+            <span class="wf-cred-label">URL</span>
+            <span class="wf-cred-value"><code id="wfDashUrl">http://192.168.4.1/</code><button class="wf-copy" id="wfDashUrlCopy" data-copyval="http://192.168.4.1/">Copy</button></span>
+          </div>
+          <p class="wf-footnote">mDNS (.local) support varies by device &mdash; use the IP above if it doesn't load</p>
+        </div>
+      </div>
+
+      <div class="wf-tab-panel" data-wftabpanel="console" hidden>
+        <div class="wf-console-head">
+          <p class="wf-dim" style="margin:0">Send commands over Web Serial &mdash; control the board without WiFi.</p>
+          <button class="serial-btn ghost small" id="wfConsoleExpand" title="open a bigger console view">Expand &#10530;</button>
+        </div>
+        <p class="wf-dim" id="wfConsoleNoCaps" style="margin:0" hidden>No response from the board's console (<code>caps</code> got no reply) &mdash; commands disabled. Needs a <code>WITH_SERIAL</code> build; reconnect to retry.</p>
+        <div class="wf-console-quick">
+          <button class="serial-btn small" data-wfcmd="scan 30">Scan 30s</button>
+          <button class="serial-btn small" data-wfcmd="stop">Stop</button>
+          <button class="serial-btn small" data-wfcmd="nets">Nets</button>
+          <button class="serial-btn small" data-wfcmd="list">List</button>
+          <button class="serial-btn small" data-wfcmd="status">Status</button>
+          <button class="serial-btn small" data-wfcmd="help">Help</button>
+        </div>
+        <div class="wf-cmd-row">
+          <input type="text" id="wfCmdInput" class="wf-cmd-input" list="wfCmdList" autocomplete="off" spellcheck="false" placeholder="type a command, e.g. &quot;scan 30&quot;&hellip;">
+          <button class="serial-btn primary small" id="wfCmdSend">Send</button>
+        </div>
+
+        <datalist id="wfCmdList">
+          <option value="help"><option value="status"><option value="stop"><option value="clear">
+          <option value="list"><option value="nets"><option value="scan 30"><option value="scan -">
+          <option value="chan"><option value="band"><option value="type"><option value="data on">
+          <option value="clients"><option value="factory yes">
+        </datalist>
+      </div>
+
+      <div class="wf-actions wf-actions-post">
+        <button class="serial-btn primary" id="wfOpenDash" type="button">Next &rarr;</button>
+        <button class="serial-btn ghost" id="wfFlashAnother">Flash another board</button>
+      </div>
+    </div>
+
+    <div class="wf-card install-mode-panel" data-mode-panel="manual" hidden>
+      <div class="wf-card-head"><span class="wf-num">3</span><h3>Join the WiFi</h3></div>
+      <p class="wf-dim" style="margin:0">Open a serial monitor at 115200 baud, read the boot log's <b>Password:</b> line, join the <em>hidden</em> SSID "802Eleven" with it.</p>
+    </div>
+
+    <div class="wf-card install-mode-panel" data-mode-panel="manual" hidden>
+      <div class="wf-card-head"><span class="wf-num">4</span><h3>Open the dashboard</h3></div>
+      <p class="wf-dim" style="margin:0">Browse to <code>http://192.168.4.1</code> (or <code>http://802eleven.local</code> where mDNS is enabled).</p>
+    </div>
+
+    <div class="wf-modal" id="wfConsoleModal" hidden>
+      <div class="wf-modal-inner">
+        <div class="wf-modal-head">
+          <h3>Console</h3>
+          <button class="wf-modal-close" id="wfConsoleModalClose" aria-label="Close">&times;</button>
+        </div>
+        <div class="wf-console-quick">
+          <button class="serial-btn small" data-wfcmd="scan 30">Scan 30s</button>
+          <button class="serial-btn small" data-wfcmd="stop">Stop</button>
+          <button class="serial-btn small" data-wfcmd="nets">Nets</button>
+          <button class="serial-btn small" data-wfcmd="list">List</button>
+          <button class="serial-btn small" data-wfcmd="status">Status</button>
+          <button class="serial-btn small" data-wfcmd="help">Help</button>
+        </div>
+        <div class="serial-log wf-log-target wf-modal-log" id="wfConsoleModalLog"></div>
+        <div class="wf-cmd-row">
+          <input type="text" id="wfCmdInputModal" class="wf-cmd-input" list="wfCmdList" autocomplete="off" spellcheck="false" placeholder="type a command, e.g. &quot;scan 30&quot;&hellip;">
+          <button class="serial-btn primary small" id="wfCmdSendModal">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint-box">No hardware yet? Experience the simulator!</div>
+</section>
+
+<section class="pane" id="sims">
+  <h2>Try it <span class="hl">without a board</span></h2>
+  <p class="lede">Explore each screen available within the installed firmware. <em>This is entirely a simulation and does not represent a real network environment.</em></p>
+  <div class="sim-tabs" role="tablist" aria-label="Simulator type">
+    <button type="button" role="tab" aria-selected="true" data-filter="all">All</button>
+    <button type="button" role="tab" aria-selected="false" data-filter="web">Web dashboard</button>
+    <button type="button" role="tab" aria-selected="false" data-filter="handheld">Handheld</button>
+    <button type="button" role="tab" aria-selected="false" data-filter="touch">Touchscreen</button>
+    <button type="button" role="tab" aria-selected="false" data-filter="dongle">Dongle</button>
+  </div>
+  <div class="carousel">
+  <button class="nav prev" type="button" aria-label="Previous simulators" disabled>&lsaquo;</button>
+  <button class="nav next" type="button" aria-label="Next simulators">&rsaquo;</button>
+  <div class="cards track">
+    <a class="card wifi" data-type="web" href="sims/web/index.html">
+      <span class="shot"><span class="badge">WEB DASHBOARD</span><img src="screenshots/sim-web.png" alt="802Eleven web dashboard simulator screenshot" loading="lazy"></span>
+      <span class="body">
+        <h3>Dashboard sim</h3>
+        <p>The full radar UI wired to a mock API &mdash; proximity map, devices table, deauth feed, the works.</p>
+        <span class="go">Launch sim &rarr;</span>
+      </span>
+    </a>
+    <a class="card cardputer" data-type="handheld" href="sims/cardputer-recon/index.html">
+      <span class="shot"><span class="badge">CARDPUTER ADV</span><img src="screenshots/sim-cardputer.png" alt="M5Stack Cardputer on-device UI simulator screenshot" loading="lazy"></span>
+      <span class="body">
+        <h3>Cardputer sim</h3>
+        <p>Full keyboard + LCD on-device menu, in the browser &mdash; same tile carousel as real device.</p>
+        <span class="go">Launch sim &rarr;</span>
+      </span>
+    </a>
+    <a class="card cyd" data-type="touch" href="sims/cyd-recon/index.html">
+      <span class="shot"><span class="badge">CYD</span><img src="screenshots/sim-cyd.png" alt="Cheap Yellow Display on-device UI simulator screenshot" loading="lazy"></span>
+      <span class="body">
+        <h3>CYD sim</h3>
+        <p>The touchscreen "Cheap Yellow Display" build &mdash; capture, tools, and settings as tiles.</p>
+        <span class="go">Launch sim &rarr;</span>
+      </span>
+    </a>
+    <a class="card cyd" data-type="touch" href="sims/cydc5-recon/index.html">
+      <span class="shot"><span class="badge">CYD C5</span><img src="screenshots/sim-cydc5.png" alt="CYD C5 radial-menu on-device UI simulator screenshot" loading="lazy"></span>
+      <span class="body">
+        <h3>CYD C5 sim</h3>
+        <p>Dual-band 2.4 / 5&nbsp;GHz build with the radial dial menu &mdash; 5&nbsp;GHz channels, band pause, custom channel picker.</p>
+        <span class="go">Launch sim &rarr;</span>
+      </span>
+    </a>
+    <a class="card tdongle" data-type="dongle" href="sims/tdonglec5-recon/index.html">
+      <span class="shot"><span class="badge">T-DONGLE-C5</span><img src="screenshots/sim-tdonglec5.png" alt="T-Dongle-C5 on-device UI simulator screenshot" loading="lazy"></span>
+      <span class="body">
+        <h3>T&#8209;Dongle&#8209;C5 sim</h3>
+        <p>Pocket-dongle build with 5&nbsp;GHz support &mdash; tiny screen, same radar core.</p>
+        <span class="go">Launch sim &rarr;</span>
+      </span>
+    </a>
+  </div>
+  </div>
+</section>
+
+<!-- Theme Designer: hidden for now, release later.
+<section class="pane" id="designer">
+  <h2>Build your own <span class="hl">look</span></h2>
+  <p class="lede">A standalone, no-server-needed design tool for customising on-device firmware &mdash; pick colours or <a href="tools/ThemeDesigner/index.html#icons">draw icons</a>, then paste the generated C++ straight into the repo.</p>
+  <div class="cards">
+    <a class="card theme" href="tools/ThemeDesigner/index.html">
+      <span class="shot"><span class="badge">THEME DESIGNER</span><img src="screenshots/theme-designer.png" alt="802Eleven Theme Designer tool screenshot" loading="lazy"></span>
+      <span class="body">
+        <h3>Theme Designer</h3>
+        <p>Pick every colour role on a wheel, preview real RGB565&#8594;RGB332 quantization, and edit the on-device tile icons in the Icons tab &mdash; exports a ready-to-drop <code>CpTheme</code> subclass and C++ icon set.</p>
+        <span class="go">Open tool &rarr;</span>
+      </span>
+    </a>
+  </div>
+</section>
+-->
+
+<footer>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script type="module">
+  import * as esptooljs from 'https://unpkg.com/esptool-js@0.7.0/bundle.js';
+  window.esptooljs = esptooljs;
+  window.dispatchEvent(new Event('esptooljs-ready'));
+</script>
+<script src="js/install-wizard.js"></script>
+<script src="js/web-flasher.js"></script>
+<script src="js/mesh-background.js"></script>
+<script>
+(function () {
+  var sims = document.getElementById('sims'), footer = document.querySelector('footer');
+  if (!sims || !footer) return;
+  function pad() {
+    footer.style.minHeight = '';
+    var short = window.innerHeight - sims.getBoundingClientRect().height;
+    footer.style.minHeight = short > 0 ? short + 'px' : '';
+  }
+  window.addEventListener('resize', pad);
+  window.addEventListener('load', pad);
+  pad();
+})();
+
+(function () {
+  var bar = document.querySelector('.feat-bar');
+  if (!bar) return;
+  var FEAT_LABEL = {
+    web: 'Web UI', sdcard: 'SD Card', gps: 'GPS', dual: 'Dual‑band',
+    scout: 'Scout', sentinel: 'Sentinel'
+  };
+  var cards = document.querySelectorAll('.feat-cards .card');
+  cards.forEach(function (card) {
+    if (card.dataset.releaseId && window.wfSelectRelease) {
+      card.classList.add('card-clickable');
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.addEventListener('click', function () { window.wfSelectRelease(card.dataset.releaseId); });
+      card.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.wfSelectRelease(card.dataset.releaseId); }
+      });
+    }
+    var feats = (card.dataset.feats || '').split(/\s+/).filter(Boolean);
+    var uniq = feats.filter(function (f, i) { return feats.indexOf(f) === i; });
+    var tags = card.querySelector('.feat-tags');
+    if (!tags) return;
+    uniq.forEach(function (f) {
+      var s = document.createElement('span');
+      s.className = 'feat-tag';
+      s.dataset.feat = f;
+      s.textContent = FEAT_LABEL[f] || f;
+      tags.appendChild(s);
+    });
+  });
+  var chips = bar.querySelectorAll('.feat-chip');
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var f = chip.dataset.feat;
+      chips.forEach(function (c) {
+        c.classList.toggle('active', c === chip);
+        c.setAttribute('aria-selected', c === chip ? 'true' : 'false');
+      });
+      cards.forEach(function (card) {
+        var has = f === 'all' || (card.dataset.feats || '').split(/\s+/).indexOf(f) !== -1;
+        card.classList.toggle('feat-dim', !has);
+        card.querySelectorAll('.feat-tag').forEach(function (tag) {
+          tag.classList.toggle('feat-tag-match', f !== 'all' && tag.dataset.feat === f);
+        });
+      });
+    });
+  });
+})();
+
+document.querySelectorAll('.carousel').forEach(function (c) {
+  var track = c.querySelector('.track'), prev = c.querySelector('.prev'), next = c.querySelector('.next');
+  function step() { var card = track.querySelector('.card'); return card ? card.getBoundingClientRect().width + 18 : 300; }
+  function sync() {
+    prev.disabled = track.scrollLeft < 4;
+    next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+    c.classList.toggle('at-start', prev.disabled);
+    c.classList.toggle('at-end', next.disabled);
+  }
+  prev.addEventListener('click', function () { track.scrollBy({ left: -step(), behavior: 'smooth' }); });
+  next.addEventListener('click', function () { track.scrollBy({ left: step(), behavior: 'smooth' }); });
+  track.addEventListener('scroll', sync, { passive: true });
+  window.addEventListener('resize', sync);
+  sync();
+  var tabs = c.parentNode.querySelectorAll('.sim-tabs button');
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      var f = t.dataset.filter;
+      tabs.forEach(function (o) { o.setAttribute('aria-selected', o === t ? 'true' : 'false'); });
+      track.querySelectorAll('.card').forEach(function (card) { card.hidden = f !== 'all' && card.dataset.type !== f; });
+      track.scrollLeft = 0;
+      sync();
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>802Eleven -- CYD sim</title>
+<style>
+  html, body {
+    margin: 0; height: 100vh;
+    background: #17171b;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    gap: 10px;
+    padding: 10px 0;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  /* CYD ("Cheap Yellow Display") boards ship on a yellow PCB visible around the black bezel --
+     the sim's own giveaway detail, not just a generic phone mockup. */
+  .device {
+    background: linear-gradient(160deg, #e8c400, #c9a600);
+    border-radius: 14px;
+    padding: 16px;
+    max-width: calc(100vw - 24px);
+    box-shadow: 0 14px 40px rgba(0,0,0,.55), inset 0 0 0 1px rgba(0,0,0,.15);
+  }
+  .bezel {
+    background: #0a0a0a;
+    border-radius: 6px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 100%;
+    transition: width .25s ease, height .25s ease;
+  }
+  /* max-width/height:auto let a phone-width viewport shrink the panel to fit (no horizontal
+     scroll / forced pinch-zoom); the JS still sets an explicit pixel width/height for the sharp
+     SCALE=2.2 backing resolution -- max-width always wins over a competing width per the CSS
+     spec, so this only kicks in when the explicit size would overflow the viewport. */
+  canvas#cyd {
+    display: block;
+    border-radius: 2px;
+    background: #000;
+    touch-action: none;
+    cursor: pointer;
+    max-width: 100%;
+    /* Reserve room for device padding/bezel/usb-notch so the whole stack fits inside one
+       viewport with no scroll. */
+    max-height: calc(100vh - 70px);
+    width: auto;
+    height: auto;
+  }
+  .usb-notch {
+    width: 46px; height: 8px;
+    background: #1c1c1c;
+    border-radius: 0 0 4px 4px;
+    margin-top: -2px;
+  }
+  .device {
+    position: relative;
+    z-index: 0;
+  }
+  .rotate-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    background: #2b2b30;
+    color: #d8d8de;
+    border: 1px solid #45454c;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,.4);
+    z-index: 5;
+  }
+  .rotate-btn:hover { background: #34343b; }
+  .rotate-btn:active { transform: translateY(1px); }
+  .rotate-btn svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+  <div class="device">
+    <button class="rotate-btn" id="rotateBtn" title="Rotate (portrait/landscape)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+    </button>
+    <div class="bezel">
+      <canvas id="cyd"></canvas>
+      <div class="usb-notch"></div>
+    </div>
+  </div>
+
+  <script>
+    var canvas = document.getElementById('cyd');
+    var bezel = document.querySelector('.bezel');
+    var lcdCtx = canvas.getContext('2d');
+    var SCALE = 2.2;
+    var curW = 320, curH = 240;
+
+    function applyCanvasSize(w, h) {
+      curW = w; curH = h;
+      canvas.width = w * SCALE;
+      canvas.height = h * SCALE;
+      lcdCtx.setTransform(1, 0, 0, 1, 0, 0);
+      lcdCtx.scale(SCALE, SCALE);
+      notifyParentSize();
+    }
+
+    function notifyParentSize() {
+      if (window.parent === window) return;
+      requestAnimationFrame(function () {
+        var r = document.querySelector('.device').getBoundingClientRect();
+        window.parent.postMessage({
+          type: 'simSize', w: r.width, h: r.height, x: r.left, y: r.top,
+        }, '*');
+      });
+    }
+    applyCanvasSize(240, 320);
+
+    var Module = {
+      lcdCtx: lcdCtx,
+      rgb565: function (c) {
+        var r = (c >> 11) & 0x1F, g = (c >> 5) & 0x3F, b = c & 0x1F;
+        return 'rgb(' + ((r * 527 + 23) >> 6) + ',' + ((g * 259 + 33) >> 6) + ',' + ((b * 527 + 23) >> 6) + ')';
+      },
+      onScreenSize: function (w, h) {
+        if (w !== curW || h !== curH) applyCanvasSize(w, h);
+      },
+      onRuntimeInitialized: function () {
+        Module.ccall('sim_init', null, [], []);
+        var simFrame = Module.cwrap('sim_frame', null, ['number', 'number', 'number'], { async: true });
+        var toggleOrient = Module.cwrap('sim_toggle_orientation', 'number', []);
+        var getW = Module.cwrap('sim_width', 'number', []);
+        var getH = Module.cwrap('sim_height', 'number', []);
+
+        var isPortrait = getH() > getW();
+        if (!isPortrait) { toggleOrient(); isPortrait = true; }
+        if (getW() !== curW || getH() !== curH) applyCanvasSize(getW(), getH());
+
+        var rafBusy = false;
+        async function raf() {
+          if (rafBusy) { requestAnimationFrame(raf); return; }
+          rafBusy = true;
+          await simFrame(touchDown ? 1 : 0, touchX, touchY);
+          rafBusy = false;
+          requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        document.getElementById('rotateBtn').addEventListener('click', function () {
+          isPortrait = toggleOrient() !== 0;
+        });
+
+        var keyScroll = Module.cwrap('sim_key_scroll', null, ['number']);
+        var SCROLL_STEP_PX = 32;
+        window.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowDown') { keyScroll(-SCROLL_STEP_PX); e.preventDefault(); }
+          else if (e.key === 'ArrowUp') { keyScroll(SCROLL_STEP_PX); e.preventDefault(); }
+        });
+
+        canvas.addEventListener('wheel', function (e) {
+          keyScroll(-e.deltaY);
+          e.preventDefault();
+        }, { passive: false });
+      },
+    };
+
+    var touchDown = false, touchX = 0, touchY = 0;
+    function updateFromEvent(e) {
+      var rect = canvas.getBoundingClientRect();
+      var cx = (e.clientX - rect.left) / rect.width * curW;
+      var cy = (e.clientY - rect.top) / rect.height * curH;
+      touchX = Math.max(0, Math.min(curW - 1, Math.round(cx)));
+      touchY = Math.max(0, Math.min(curH - 1, Math.round(cy)));
+    }
+    canvas.addEventListener('pointerdown', function (e) {
+      canvas.setPointerCapture(e.pointerId);
+      updateFromEvent(e);
+      touchDown = true;
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      if (!touchDown) return;
+      updateFromEvent(e);
+    });
+    function release(e) { touchDown = false; }
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
+    canvas.addEventListener('pointerleave', function (e) { if (e.buttons === 0) release(e); });
+</script>
+  <script src="sim.js"></script>
+</body>
+</html>

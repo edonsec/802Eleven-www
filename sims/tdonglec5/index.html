@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>802Eleven -- T-Dongle-C5 sim</title>
+<style>
+  html, body {
+    margin: 0; height: 100vh;
+    background: #17171b;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    gap: 14px;
+    padding: 10px 0;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  /* T-Dongle-C5: a translucent frosted-white plastic capsule case. Default
+     (portrait screen): an upright pill, dome on top, USB connector at the
+     base. .device.landscape (screen rotated via the rotate button): the
+     exact same piece dimensions, just reflowed into a row -- dome on the
+     LEFT, connector on the RIGHT -- so it reads as the same physical object
+     turned on its side, not a redesigned one. */
+  .device {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Contains the flash's outer box-shadow bleed (see .cap::before etc.
+       below) -- the launcher modal's viewport wrapper sizes itself to
+       exactly .device's reported bounding box and clips anything bleeding
+       past it. */
+    padding: 90px;
+  }
+  .device.landscape {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  /* Optional cosmetic-only ambient light (toggled off by default) -- no real
+     T-Dongle-C5 hardware has this; it re-derives which WiFi frame kind is
+     most active from real WifiStore growth (see sim_glow_kind()) as a lit
+     tint on the translucent chassis itself (cap/shell/connector, via their
+     own ::before below) instead of just the tiny onboard LED dot,
+     restricted to Standalone (see sim_standalone_active) since that's the
+     only mode where the real LED cycles continuously without user input.
+     --glow-color is set by flashChassis() in the script below; every piece
+     reads the same custom property (it inherits down from .device) so one
+     JS write lights up the whole case in sync. */
+  .cap::before, .shell::before, .usb-connector::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--glow-color, transparent);
+    /* screen blend lets the tint light the translucent material up rather
+       than just painting a flat colour over it; the box-shadow (only
+       visible once lit, via the animation below) bleeds a soft halo past
+       the piece's own edges for a real glow, not just an internal tint.
+       The blur filter softens both into something diffuse rather than a
+       crisp coloured shape. */
+    mix-blend-mode: screen;
+    box-shadow: 0 0 50px 14px var(--glow-color, transparent);
+    filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .device.flash .cap::before,
+  .device.flash .shell::before,
+  .device.flash .usb-connector::before {
+    animation: chassisFlash 1.2s ease-out;
+  }
+  @keyframes chassisFlash {
+    0% { opacity: .55; }
+    30% { opacity: .4; }
+    100% { opacity: 0; }
+  }
+  /* Rounded dome cap -- a separate piece in the reference photo, sitting on
+     top of the case tube (portrait/default). */
+  .cap {
+    position: relative;
+    flex: 0 0 auto;
+    width: 100%;
+    height: 34px;
+    margin-bottom: -1px;
+    border-radius: 34px 34px 0 0;
+    background: linear-gradient(165deg, rgba(255,255,255,.18), rgba(200,210,224,.05));
+    border: 1px solid rgba(255,255,255,.3);
+    border-bottom: none;
+    box-shadow: inset 0 6px 8px rgba(255,255,255,.28), inset 0 -3px 6px rgba(120,130,150,.15);
+  }
+  /* Dark-blue trim band under the dome, matching the reference photo's seam
+     between the cap and the clear window over the LCD. */
+  .trim {
+    flex: 0 0 auto;
+    width: 100%;
+    height: 7px;
+    background: linear-gradient(90deg, #16324f, #2a5c8f 45%, #16324f);
+    box-shadow: 0 1px 0 rgba(255,255,255,.25) inset;
+  }
+  .shell {
+    position: relative;
+    flex: 0 0 auto;
+    width: 100%;
+    background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(190,200,215,.03));
+    backdrop-filter: blur(1px);
+    border: 1px solid rgba(255,255,255,.2);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+    padding: 10px 10px 12px;
+    box-shadow: 0 14px 30px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.35),
+      inset -8px 0 16px rgba(255,255,255,.06), inset 8px 0 16px rgba(120,130,150,.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  /* Diagonal glass-reflection streak, like the highlight in the reference
+     photo's clear plastic. */
+  .shell::after {
+    content: '';
+    position: absolute;
+    top: -10%; left: 8%;
+    width: 22%; height: 130%;
+    background: linear-gradient(200deg, rgba(255,255,255,.22), rgba(255,255,255,0) 60%);
+    transform: skewX(-12deg);
+    pointer-events: none;
+  }
+  canvas#lcd {
+    display: block;
+    border-radius: 2px;
+    background: #000;
+    touch-action: none;
+    cursor: pointer;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 200px);
+    width: auto;
+    height: auto;
+  }
+  /* USB-A connector: pokes straight out of the chassis (flush against the
+     shell, no gap/taper piece) -- just the metal blade. The two square
+     features are recessed screw/rivet holes (dark, not gold contacts --
+     the actual contacts are on the blade's hidden inner face). */
+  .usb-connector {
+    position: relative;
+    flex: 0 0 auto;
+    width: 100px;
+    height: 90px;
+    margin: -1px auto 0;
+    background: linear-gradient(100deg, #c7cbd1 0%, #eef0f3 30%, #b3b8bf 55%, #dfe2e6 80%, #a7acb3 100%);
+    border: 1px solid #7d838a;
+    border-radius: 0 0 10px 10px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 10px;
+    padding-top: 35px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 10px rgba(0,0,0,.45);
+  }
+  /* Seam where the connector's two metal shell halves meet, ~1/3 down from
+     the case, matching the reference photo. */
+  .usb-connector::before {
+    content: '';
+    position: absolute;
+    left: 6%; right: 6%;
+    top: 38%;
+    height: 1px;
+    background: rgba(90,95,102,.8);
+    pointer-events: none;
+  }
+  /* Two rivets on the case-side edge, matching the reference photo. */
+  .rivet {
+    position: absolute;
+    top: 10px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #f4f5f7, #a7acb3);
+    box-shadow: inset 0 0 1px rgba(0,0,0,.5);
+  }
+  .rivet-a { left: 12px; }
+  .rivet-b { right: 12px; }
+  .usb-connector .pin {
+    width: 14px; height: 14px;
+    background: linear-gradient(160deg, #35383c, #1c1e20);
+    border-radius: 1px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.7), inset 0 -1px 0 rgba(255,255,255,.05);
+  }
+  /* Landscape overrides: identical px values to the portrait pieces above,
+     just swapped onto the other axis -- same physical object, turned on its
+     side. Pins stay 14x14 (square), so they need no override. */
+  .device.landscape .cap {
+    width: 34px;
+    height: auto;
+    margin-bottom: 0;
+    margin-right: -1px;
+    border-radius: 34px 0 0 34px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,.4);
+    box-shadow: inset 6px 0 8px rgba(255,255,255,.28), inset -3px 0 6px rgba(120,130,150,.15);
+  }
+  .device.landscape .trim {
+    width: 7px;
+    height: auto;
+  }
+  .device.landscape .shell {
+    width: auto;
+    border-top: 1px solid rgba(255,255,255,.28);
+    border-left: none;
+    border-radius: 0;
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .device.landscape .usb-connector {
+    width: 90px;
+    height: 100px;
+    margin: auto 0 auto -1px;
+    border-radius: 0 10px 10px 0;
+    align-self: center;
+    flex-direction: column;
+    padding-top: 0;
+    padding-left: 35px;
+  }
+  .device.landscape .usb-connector::before {
+    left: 38%;
+    top: 6%; bottom: 6%;
+    right: auto;
+    width: 1px;
+    height: auto;
+  }
+  .device.landscape .rivet-a { top: 12px; left: 10px; }
+  .device.landscape .rivet-b { top: auto; bottom: 12px; left: 10px; right: auto; }
+  /* Shell's own contents, in landscape: the button strip becomes a vertical
+     column sitting beside the screen (a sidebar) instead of a horizontal row
+     above it -- canvas + hint are grouped into .screen-col so they stay
+     stacked together as the row's other half. */
+  .device.landscape .btn-row {
+    width: auto;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .screen-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .led-dot {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #111;
+    box-shadow: inset 0 0 2px rgba(0,0,0,.8);
+    top: 8px; left: 8px;
+    transition: background .08s linear, box-shadow .08s linear;
+  }
+  .btn-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+  .rotate-btn, .sentinel-btn, .glow-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    background: #2b2b30;
+    color: #d8d8de;
+    border: 1px solid #45454c;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  }
+  .rotate-btn:hover, .sentinel-btn:hover, .glow-btn:hover { background: #34343b; }
+  .rotate-btn:active, .sentinel-btn:active, .glow-btn:active { transform: translateY(1px); }
+  .rotate-btn svg { width: 16px; height: 16px; }
+  .sentinel-btn svg { width: 15px; height: 15px; }
+  .sentinel-btn.active {
+    background: #4a1414; border-color: #ff4d4d; color: #ff8080;
+    box-shadow: 0 0 8px rgba(255,45,45,.6);
+  }
+  .glow-btn { color: #8a8a92; }
+  .glow-btn.active {
+    background: #1a2f3a; border-color: #52ffff; color: #a6ffff;
+    box-shadow: 0 0 8px rgba(82,255,255,.5);
+  }
+  .glow-btn svg { width: 15px; height: 15px; }
+  .hold-hint {
+    color: #6a6a72;
+    font-size: 10px;
+    letter-spacing: .2px;
+  }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="cap"></div>
+    <div class="trim"></div>
+    <div class="shell">
+      <div class="btn-row">
+        <button class="sentinel-btn" id="sentinelBtn" title="Start/stop Sentinel (Deauth+Karma+Rogue watch)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9 8 11 4.6-2 8-6 8-11V5l-8-3Z"/></svg>
+        </button>
+        <button class="glow-btn" id="glowBtn" title="Toggle ambient case glow (Standalone frame colours, cosmetic only)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.55 1 1.3 1 2.1V16h6v-.4c0-.8.4-1.55 1-2.1A6 6 0 0 0 12 3Z"/></svg>
+        </button>
+        <button class="rotate-btn" id="rotateBtn" title="Toggle portrait/landscape (POST /api/prefs/orient)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+        </button>
+      </div>
+      <div class="screen-col">
+        <div style="position:relative;">
+          <div class="led-dot" id="ledDot"></div>
+          <canvas id="lcd"></canvas>
+        </div>
+        <div class="hold-hint">Hold screen 2s: Standalone</div>
+      </div>
+    </div>
+    <div class="usb-connector">
+      <div class="rivet rivet-a"></div>
+      <div class="rivet rivet-b"></div>
+      <div class="pin"></div>
+      <div class="pin"></div>
+    </div>
+  </div>
+
+  <script>
+    var canvas = document.getElementById('lcd');
+    var lcdCtx = canvas.getContext('2d');
+    var ledDot = document.getElementById('ledDot');
+    var device = document.querySelector('.device');
+    var SCALE = 3;
+    var curW = 80, curH = 160;
+    var glowEnabled = false;
+    var standaloneNow = false;
+
+    var GLOW_COLOR = { 2: [0, 255, 0], 1: [255, 160, 0], 8: [160, 0, 255], 16: [255, 0, 0] };
+
+    function flashChassis(r, g, b) {
+      if (!glowEnabled || !standaloneNow) return;
+      device.style.setProperty('--glow-color', 'rgb(' + r + ',' + g + ',' + b + ')');
+      device.classList.remove('flash');
+      void device.offsetWidth;
+      device.classList.add('flash');
+    }
+
+    function applyCanvasSize(w, h) {
+      curW = w; curH = h;
+      canvas.width = w * SCALE;
+      canvas.height = h * SCALE;
+      lcdCtx.setTransform(1, 0, 0, 1, 0, 0);
+      lcdCtx.scale(SCALE, SCALE);
+      document.querySelector('.device').classList.toggle('landscape', w > h);
+      notifyParentSize();
+    }
+
+    function notifyParentSize() {
+      if (window.parent === window) return;
+      requestAnimationFrame(function () {
+        var r = document.querySelector('.device').getBoundingClientRect();
+        window.parent.postMessage({ type: 'simSize', w: r.width, h: r.height, x: r.left, y: r.top }, '*');
+      });
+    }
+
+    applyCanvasSize(80, 160);
+
+    var Module = {
+      lcdCtx: lcdCtx,
+      rgb565: function (c) {
+        var r = (c >> 11) & 0x1F, g = (c >> 5) & 0x3F, b = c & 0x1F;
+        return 'rgb(' + ((r * 527 + 23) >> 6) + ',' + ((g * 259 + 33) >> 6) + ',' + ((b * 527 + 23) >> 6) + ')';
+      },
+      onScreenSize: function (w, h) {
+        if (w !== curW || h !== curH) applyCanvasSize(w, h);
+      },
+      onBacklight: function (pct) {
+        canvas.style.opacity = pct <= 0 ? 0.06 : (0.25 + 0.75 * (pct / 100));
+      },
+      onLed: function (r, g, b) {
+        if (r === 0 && g === 0 && b === 0) {
+          ledDot.style.background = '#111';
+          ledDot.style.boxShadow = 'inset 0 0 2px rgba(0,0,0,.8)';
+        } else {
+          var col = 'rgb(' + r + ',' + g + ',' + b + ')';
+          ledDot.style.background = col;
+          ledDot.style.boxShadow = '0 0 6px 2px ' + col;
+        }
+      },
+      onRuntimeInitialized: function () {
+        Module.ccall('sim_init', null, [], [], { async: true }).then(function () {
+          var tick = Module.cwrap('sim_tick', null, [], { async: true });
+          var btnDown = Module.cwrap('sim_btn_down', null, []);
+          var btnUp = Module.cwrap('sim_btn_up', null, []);
+          var setOrient = Module.cwrap('sim_set_orientation', null, ['number']);
+          var getOrient = Module.cwrap('sim_get_orientation', 'number', []);
+          var toggleSentinel = Module._sim_toggle_sentinel ? Module.cwrap('sim_toggle_sentinel', null, []) : null;
+          var sentinelActive = Module._sim_sentinel_active ? Module.cwrap('sim_sentinel_active', 'number', []) : null;
+          var standaloneActive = Module.cwrap('sim_standalone_active', 'number', []);
+          var glowKind = Module.cwrap('sim_glow_kind', 'number', []);
+
+          var ticking = false;
+          function raf() {
+            if (!ticking) {
+              ticking = true;
+              tick().finally(function () {
+                ticking = false;
+                standaloneNow = !!standaloneActive();
+                var kind = standaloneNow ? glowKind() : 0;
+                if (kind && GLOW_COLOR[kind]) {
+                  flashChassis.apply(null, GLOW_COLOR[kind]);
+                } else if (!standaloneNow || !glowEnabled) {
+                  device.classList.remove('flash');
+                }
+              });
+            }
+            requestAnimationFrame(raf);
+          }
+          requestAnimationFrame(raf);
+
+        document.getElementById('rotateBtn').addEventListener('click', function () {
+          setOrient(getOrient() === 1 ? 0 : 1);
+        });
+
+        var sentinelBtn = document.getElementById('sentinelBtn');
+        if (toggleSentinel) {
+          sentinelBtn.addEventListener('click', function () {
+            toggleSentinel();
+            sentinelBtn.classList.toggle('active', !!sentinelActive());
+          });
+        } else {
+          sentinelBtn.style.display = 'none';
+        }
+
+        var glowBtn = document.getElementById('glowBtn');
+        glowBtn.addEventListener('click', function () {
+          glowEnabled = !glowEnabled;
+          glowBtn.classList.toggle('active', glowEnabled);
+          if (!glowEnabled) device.classList.remove('flash');
+        });
+
+        function press(e) {
+          e.preventDefault();
+          btnDown();
+        }
+        function release() {
+          btnUp();
+        }
+        canvas.addEventListener('pointerdown', function (e) { canvas.setPointerCapture(e.pointerId); press(e); });
+        canvas.addEventListener('pointerup', release);
+        canvas.addEventListener('pointercancel', release);
+        canvas.addEventListener('pointerleave', function (e) { if (e.buttons === 0) release(); });
+        });
+      },
+    };
+</script>
+  <script src="sim.js"></script>
+</body>
+</html>

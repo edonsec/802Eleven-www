@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>802Eleven</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%230f1420'/%3E%3Ctext%20x='32'%20y='40'%20font-family='Arial,Helvetica,sans-serif'%20font-size='24'%20font-weight='700'%20text-anchor='middle'%20fill='%234da3ff'%3E802%3C/text%3E%3Cpath%20d='M44%2016a16%2016%200%200%201%2012%205'%20stroke='%2337d67a'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'/%3E%3Cpath%20d='M47%2020a10%2010%200%200%201%207%203'%20stroke='%2337d67a'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'%20opacity='.85'/%3E%3Ccircle%20cx='51'%20cy='25'%20r='2.5'%20fill='%2337d67a'/%3E%3C/svg%3E">
+
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="authGate">
+  <form id="authForm" onsubmit="authSubmit(event)">
+    <div class="agtitle"><span class="brandlong">802</span><span>Eleven</span></div>
+    <div class="agsub">Enter access password</div>
+    <input id="authPass" type="password" autocomplete="current-password" placeholder="password">
+    <button type="submit">Unlock</button>
+    <div id="authErr" class="agerr"></div>
+  </form>
+</div>
+<div id="splashGate">
+  <div class="spltitle"><span class="brandlong">802</span><span>Eleven</span></div>
+  <div class="splsub">Continue live, or jump straight to reviewing an offline import.</div>
+  <div class="splrow">
+    <button class="splbadge wifi" onclick="splashPick('wifi')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 8.5a16 16 0 0 1 20 0"/><path d="M5.5 12.5a11 11 0 0 1 13 0"/>
+        <path d="M9 16.5a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="20" r="1.2" fill="currentColor" stroke="none"/>
+      </svg>
+      <div class="spllabel">WiFi Radar</div>
+      <div class="splhint">Probe/beacon capture</div>
+    </button>
+    <button class="splbadge offline" onclick="splashPick('offline')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 8.5a16 16 0 0 1 20 0"/><path d="M5.5 12.5a11 11 0 0 1 13 0"/>
+        <path d="M9 16.5a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="20" r="1.2" fill="currentColor" stroke="none"/>
+        <line x1="3" y1="3" x2="21" y2="21"/>
+      </svg>
+      <div class="spllabel">Offline</div>
+      <div class="splhint">Import/export only, no scan</div>
+    </button>
+  </div>
+</div>
+<div id="wifiLoadGate">
+  <div class="spltitle">Resume a capture?</div>
+  <div class="splsub">Saved data is on this board's SD card. Pick a source, then a file to load.</div>
+  <div class="wlgbox">
+    <div class="wlgtabs" id="wlgTabs"></div>
+    <select id="wifiLoadSel" size="6"></select>
+    <button class="go" onclick="wifiLoadPick(true)">Load selected</button>
+    <button onclick="wifiLoadPick(false)">Start fresh session</button>
+  </div>
+</div>
+<header>
+  <h1 id="title" onclick="reopenSplash()" title="change mode"><span class="brandlong">802</span><span>Eleven</span></h1>
+  <div class="controls">
+    <div class="segwrap">
+      <div class="seg" id="modeSeg" title="WiFi probe/beacon capture">
+        <button id="modeWifi" class="segbtn"     onclick="onWifiBtn()">WiFi&nbsp;<span id="wifiCaret" class="caret" style="display:none">&#9662;</span></button>
+      </div>
+      <div id="capPop" class="cappop">
+        <div class="captabs" style="display:none" id="capScoutTabs">
+          <button id="ctabCap"   class="captab on" onclick="capTab('cap')">Capture</button>
+          <button id="ctabScout" class="captab" onclick="capTab('scout')">Scout</button>
+        </div>
+        <!-- CAPTURE pane: timed monitor-mode burst on the primary radio -->
+        <div id="capPane" class="cappane">
+          <div class="utabs" style="margin-bottom:7px">
+            <button id="csubScan"    class="utab on" onclick="capSubTab('scan')">Scan</button>
+            <button id="csubIntelli" class="utab"    onclick="capSubTab('intelli')">Intelliscan</button>
+          </div>
+          <!-- SCAN sub-pane: plain timed window over a channel/type/data set -->
+          <div id="capSubScanPane">
+            <div class="cappop-hd">Scan window</div>
+            <div class="cappre">
+              <button onclick="setCapDur(15)">15s</button>
+              <button onclick="setCapDur(30)">30s</button>
+              <button onclick="setCapDur(60)">1m</button>
+              <button onclick="setCapDur(120)">2m</button>
+              <button onclick="setCapDur(300)">5m</button>
+            </div>
+            <div class="caprow">
+              <input type="range" id="capRange" min="5" max="300" value="30" step="5"
+                     oninput="document.getElementById('capLbl').textContent=fmtDur(+this.value)">
+              <b id="capLbl">20s</b>
+            </div>
+<!-- collapsible channel picker -->
+            <div class="chanaccord">
+              <button class="chanaccord-hd" onclick="toggleChanCollapse()" id="chanCollapseBtn" aria-expanded="false">
+                <span class="chanaccord-label">Channels</span>
+                <span class="chanaccord-pill" id="chanAccordPill">Auto</span>
+                <svg class="chanaccord-chevron" viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="2,4 6,8 10,4"/></svg>
+              </button>
+              <div id="chanCollapseBody" class="chanaccord-body" hidden>
+                <div id="capBandTabs" class="captabs" style="display:none;margin-bottom:6px">
+                  <button id="cbtab24" class="captab on" onclick="setCapChipBand('24')">2.4 GHz</button>
+                  <button id="cbtab5"  class="captab"    onclick="setCapChipBand('5')">5 GHz</button>
+                </div>
+                <div id="capChips" class="radial-chan-wrap" title="Auto hops 1-13. Tap to select (multi-select OK). Centre = Auto."></div>
+                <div id="cap5Chips" class="chanchips" style="display:none" title="5GHz channels (dual-band radio only). Independent of 2.4GHz set."></div>
+                <span id="capBandPause" style="display:none;margin-top:6px;display:none">
+                  <button id="capPause24Btn" class="tgl on" onclick="toggleCapBandPause('24')" title="2.4GHz band active. Click to exclude.">2.4GHz</button>
+                  <button id="capPause5Btn"  class="tgl on" onclick="toggleCapBandPause('5')"  title="5GHz band active. Click to exclude.">5GHz</button>
+                </span>
+              </div>
+            </div>
+            <div class="cappop-hd" style="margin-top:11px">Frame types</div>
+            <div id="capTypes" class="chanchips" title="Which 802.11 frame kinds the local capture keeps. Dropped kinds never reach the store.">
+              <button id="capTBeacon" class="tgl on" onclick="toggleCapType('capTBeacon')">BCN</button>
+              <button id="capTProbe"  class="tgl on" onclick="toggleCapType('capTProbe')">PRB</button>
+              <button id="capTAssoc"  class="tgl on" onclick="toggleCapType('capTAssoc')">ASC</button>
+              <button id="capTDeauth" class="tgl on" onclick="toggleCapType('capTDeauth')">DEA</button>
+              <button id="capDataBtn" class="tgl" onclick="toggleCapData()" title="Also capture 802.11 DATA frames to pair already-connected clients to their AP (not just ones that re-associate during the window). Heavier: data frames vastly outnumber mgmt frames.">DAT</button>
+            </div>
+            <div class="caphint muted">AP drops while capturing (no full-duplex). Reconnects and loads results when the window ends.</div>
+<!-- @GUARD:IF TDONGLE_BUILD -->            <div id="capIndefWrap">
+              <div class="cappop-hd" style="margin-top:11px">Standalone</div>
+              <div class="wdrow" title="Runs this scan's own channel/type/data selection on the device with no time limit -- the dashboard AP goes down for the whole run, same as a timed capture, but never auto-reconnects. Press the T-Dongle's BOOT button once to stop and bring the dashboard back.">
+                <label class="lap-toggle">
+                  <input type="checkbox" id="capIndefChk" onchange="document.getElementById('capRange').disabled=this.checked;document.querySelectorAll('#capSubScanPane .cappre button').forEach(b=>b.disabled=this.checked)">
+                  <span class="lap-toggle-bezel"></span>
+                </label>
+                <span class="wdlabel">No time limit (device button to stop)</span>
+              </div>
+            </div>
+<!-- @ENDGUARD -->            <button class="iconbtn on cappop-go" onclick="startCaptureModal()">Start capture</button>
+          </div>
+          <!-- INTELLISCAN sub-pane: locks the capture to already-known beacon channels only -->
+          <div id="capSubIntelliPane" style="display:none">
+            <div class="cappop-hd">Intelliscan</div>
+            <div class="caphint muted" id="intelliInfo">Hops only the 2.4GHz channels a known beacon has already been seen on, instead of all 13.</div>
+            <div class="cappop-hd" style="margin-top:11px">Per-channel time</div>
+            <div class="cappre">
+              <button onclick="setIntelliDur(15)">15s</button>
+              <button onclick="setIntelliDur(30)">30s</button>
+              <button onclick="setIntelliDur(60)">1m</button>
+              <button onclick="setIntelliDur(120)">2m</button>
+              <button onclick="setIntelliDur(300)">5m</button>
+            </div>
+            <div class="caprow">
+              <input type="range" id="intelliSecsInput" min="5" max="300" value="30" step="5"
+                     oninput="document.getElementById('intelliSecsLbl').textContent=fmtDur(+this.value);refreshIntelliInfo()">
+              <b id="intelliSecsLbl">20s</b>
+            </div>
+            <button id="intelliStartBtn" class="iconbtn on cappop-go" onclick="startIntelliScan()">Start Intelliscan</button>
+          </div>
+        </div>
+        <!-- SCOUT pane: independent channel set for the always-on companion -->
+        <div id="scoutPane" class="cappane" style="display:none">
+          <div class="cappop-hd">Scout channels</div>
+          <!-- 2.4GHz/5GHz tabs: both chip sets together overflow the popover's
+               fixed 236px width on mobile (13 + 25 chips), so only one band's
+               chips render at a time. Tabs stay hidden (2.4GHz-only, no
+               switcher shown) until a dual-band scout is linked. -->
+          <div id="scoutBandTabs" class="captabs" style="display:none">
+            <button id="sbtab24" class="captab on" onclick="setScoutChipBand('24')">2.4GHz</button>
+            <button id="sbtab5"  class="captab"    onclick="setScoutChipBand('5')">5GHz</button>
+          </div>
+          <div id="scoutChips" class="chanchips" title="Channels the scout hops. Independent of capture."></div>
+          <button id="scoutPause24Btn" class="tgl" onclick="toggleScoutBandPause('24')" title="Pause the 2.4GHz band on the scout's single radio -- independent of the 5GHz band below. Use this to keep the radio pinned entirely on a locked 5GHz channel instead of alternating a dwell back to 2.4GHz.">Pause 2.4GHz</button>
+          <div id="scout5Chips" class="chanchips" style="display:none" title="5GHz channels the scout hops (dual-band scout only, e.g. ESP32-C5). Independent of the 2.4GHz set -- the scout alternates a dwell on each band."></div>
+          <button id="scoutPause5Btn" class="tgl" style="display:none" onclick="toggleScoutBandPause('5')" title="Pause the 5GHz band on the scout's single radio -- independent of the 2.4GHz band above.">Pause 5GHz</button>
+          <div class="cappop-hd" style="margin-top:11px">Frame types <span class="muted">(sent over UART)</span></div>
+          <div id="scoutTypes" class="chanchips" title="Which 802.11 frame kinds the scout forwards. Turn off noisy kinds (beacons/probes) to free UART bandwidth for rare assoc/deauth lines.">
+            <button id="scoutTBeacon" class="tgl on" onclick="toggleScoutType('scoutTBeacon')">BCN</button>
+            <button id="scoutTProbe"  class="tgl on" onclick="toggleScoutType('scoutTProbe')">PRB</button>
+            <button id="scoutTAssoc"  class="tgl on" onclick="toggleScoutType('scoutTAssoc')">ASC</button>
+            <button id="scoutTDeauth" class="tgl on" onclick="toggleScoutType('scoutTDeauth')">DEA</button>
+            <button id="scoutDataBtn" class="tgl" onclick="toggleScoutData()" title="Scout also captures 802.11 DATA frames — pairs already-connected clients continuously. Independent of the primary capture toggle. Heavier: floods the UART link.">DAT</button>
+          </div>
+          <div class="cappop-hd" style="margin-top:11px">UART recovery</div>
+          <div class="caprow">
+            <button id="scoutPauseBtn" class="tgl" onclick="toggleScoutPause()" title="Idle by default: the scout stays out of promiscuous mode until armed. Toggle to arm/stop it — stopped means it's a bare, cheap UART pipe, not sniffing.">Pause link</button>
+            <button id="scoutFlushBtn" class="iconbtn" onclick="flushScout()" title="Drop whatever's still queued in the scout's TX buffer and this side's stale RX bytes, then resync on a clean line.">Flush</button>
+          </div>
+          <div class="caphint muted">The scout board streams continuously. Pick which channels it hops, then tap Send.</div>
+          <button id="scoutSend" class="iconbtn cappop-go" onclick="sendScout()">Sent to Scout</button>
+        </div>
+      </div>
+    </div>
+    <button id="liveBtn" class="iconbtn on" onclick="toggleLive()" title="live auto-refresh on/off"><span class="livedot"></span><span class="btxt">Live</span></button>
+    <button id="liteRefreshBtn" class="iconbtn" style="display:none" onclick="liteRefresh()" title="Lite mode: no auto-refresh/WebSocket -- tap to pull the latest data"><span class="btxt">&#8635; Refresh</span></button>
+<!-- @GUARD:IF TDONGLE_BUILD -->  <div class="segwrap">
+    <button id="dongleBtn" class="iconbtn" onclick="onDongleBtn()" title="T-Dongle-C5 settings and Sentinel"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="8" height="6" rx="1.2"/><path d="M8.5 8.5 V13 M11.5 8.5 V13"/><rect x="7" y="13" width="6" height="4.5" rx="1"/></svg></button>
+    <div id="dongPop" class="cappop dongpop">
+<!-- @GUARD:IF TDONGLE_BUILD -->      <div class="dhead"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="8" height="6" rx="1.2"/><path d="M8.5 8.5 V13 M11.5 8.5 V13"/><rect x="7" y="13" width="6" height="4.5" rx="1"/></svg>T-Dongle-C5</div>
+      <div class="utabs dongtabs">
+        <button id="dtabDisplay" class="utab on" onclick="dongTab('display')">Display</button>
+        <button id="dtabDevice" class="utab" onclick="dongTab('device')">Device</button>
+<!-- @GUARD:IF WITH_SENTINEL -->        <button id="dtabSentinel" class="utab" onclick="dongTab('sentinel')">Sentinel</button>
+<!-- @ENDGUARD -->      </div>
+      <div id="dongPaneDisplay" class="dongpane">
+        <div class="dsec"><div class="dsec-hd">Screen</div>
+          <div class="drow"><span class="k">Theme</span><span class="v"><select id="themeSel" onchange="setTheme(this.value)"><option value="0">Default</option><option value="1">Synthwave</option><option value="2">Matrix</option><option value="3">Crimson</option><option value="4">Viper Green</option><option value="5">Nova Purple</option><option value="6">Solar Orange</option><option value="7">High Contrast</option><option value="8">Paper</option><option value="9">Terminal</option><option value="10">Pink Paradise</option><option value="11">Cyberpunk</option><option value="12">Steampunk</option></select></span></div>
+          <div class="drow"><span class="k">Orientation</span><span class="v"><select id="orientSel" onchange="setOrientation(this.value)"><option value="0">Portrait</option><option value="1">Landscape</option><option value="2">Portrait (flipped)</option><option value="3">Landscape (flipped)</option></select></span></div>
+          <div class="drow"><span class="k">Idle view</span><span class="v"><select id="idleViewSel" onchange="setIdleView(this.value)"><option value="0">Splash</option><option value="1">WiFi QR</option><option value="2">SSID + Password</option><option value="3">Live Stats</option><option value="4">Faux USB</option><option value="5" id="memIdleOpt">Memory</option><option value="6">Off</option></select><button id="idleLockBtn" class="iconbtn" onclick="toggleIdleLock()" title="Lock the BOOT button to this view -- short-press no longer cycles to the next one."><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg></button></span></div>
+          <div class="drow"><span class="k">Memory screen</span><span class="v"><button id="memBtn" class="swpill" onclick="toggleMemScreen()" aria-pressed="false" aria-label="Memory screen"></button></span></div>
+          <div class="drow"><span class="k">SSID flash</span><span class="v"><button id="flashNewBtn" class="swpill" onclick="toggleFlashNew()" aria-pressed="false" aria-label="Flash new SSID/probe" title="Flash a fading toast on the Standalone heartbeat screen for each newly-discovered beacon/probe."></button></span></div>
+        </div>
+        <div class="dsec"><div class="dsec-hd">Power</div>
+          <div class="drow"><span class="k">Brightness</span><span class="v"><input type="range" id="dimSel" min="10" max="100" step="5" oninput="dimLive(this.value)" onchange="setDim(this.value)"><span id="dimVal" class="dimval">100%</span></span></div>
+          <div class="drow"><span class="k">Auto off</span><span class="v"><select id="autoOffSel" onchange="setAutoOff(this.value)"><option value="0">Never</option><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option></select></span></div>
+        </div>
+      </div>
+      <div id="dongPaneDevice" class="dongpane" style="display:none">
+        <div class="dsec">
+          <div class="drow"><span class="k">Long press</span><span class="v"><select id="longPressSel" onchange="setLongPress(this.value)"><option value="0">Standalone scan</option><option value="1">Sentinel</option></select></span></div>
+<!-- @GUARD:IF WITH_SENTINEL -->          <div class="drow"><span class="k">Bootscreen</span><span class="v"><select id="bootModeSel" onchange="setBootSentinel()"><option value="0">Normal</option><option value="1">Sentinel</option></select></span></div>
+<!-- @ENDGUARD -->          <div class="drow"><span class="k">Status LED</span><span class="v"><button id="ledBtn" class="swpill on" onclick="toggleLed()" aria-pressed="true" aria-label="Status LED"></button></span></div>
+        </div>
+      </div>
+<!-- @ENDGUARD --><!-- @GUARD:IF WITH_SENTINEL -->      <div id="dongPaneSentinel" class="dongpane" style="display:none">
+        <div class="dsec"><div class="dsec-hd">Watch</div>
+          <div class="drow"><span class="k">Watches</span><span class="v">
+            <button id="bootMaskDeauth" class="tgl letter on" onclick="toggleBootMask('bootMaskDeauth')" title="Deauth" aria-label="Deauth watch">D</button>
+            <button id="bootMaskKarma" class="tgl letter on" onclick="toggleBootMask('bootMaskKarma')" title="Karma" aria-label="Karma watch">K</button>
+            <button id="bootMaskRogue" class="tgl letter on" onclick="toggleBootMask('bootMaskRogue')" title="Rogue" aria-label="Rogue watch">R</button>
+          </span></div>
+          <div class="drow"><span class="k">Channel</span><span class="v"><button id="sentChanSummary" class="tgl" onclick="toggleSentChanExpand()">Auto</button></span></div>
+          <div id="sentChanExpand" class="sentexp" style="display:none">
+            <div id="sentChanBandTabs" class="captabs" style="display:none">
+              <button id="sentCbtab24" class="captab on" onclick="setSentChipBand('24')">2.4GHz</button>
+              <button id="sentCbtab5" class="captab" onclick="setSentChipBand('5')">5GHz</button>
+            </div>
+            <div id="sentChanChips" class="chanchips"></div>
+            <div id="sentChan5Chips" class="chanchips" style="display:none"></div>
+          </div>
+          <div class="drow"><span class="k">Rogue set</span><span class="v"><button id="rogueCatEspressif" class="tgl on" onclick="toggleRogueCat('rogueCatEspressif')">Espressif</button><button id="rogueCatAdapter" class="tgl on" onclick="toggleRogueCat('rogueCatAdapter')">Adapters</button><button id="rogueCatPi" class="tgl on" onclick="toggleRogueCat('rogueCatPi')">Pi</button><button id="rogueCatSpoofed" class="tgl on" onclick="toggleRogueCat('rogueCatSpoofed')">Spoofed</button><button id="rogueCatCustom" class="tgl" onclick="toggleRogueCat('rogueCatCustom')">Custom</button></span></div>
+          <div class="drow"><span class="k">Alerts</span><span class="v"><button id="sentPopupBtn" class="swpill" onclick="toggleSentPopup()" aria-pressed="false" aria-label="Alert popup" title="Show the floating Sentinel alert panel while a watch session is armed."></button></span></div>
+        </div>
+        <div class="dsec"><div class="dsec-hd">Run</div>
+          <button id="sentinelStartBtn" class="iconbtn on dong-go" onclick="requestSentinelStart()">Start Sentinel</button>
+          <div class="dhint">Dashboard AP drops for the session. Press BOOT once to stop.</div>
+        </div>
+      </div>
+<!-- @ENDGUARD -->    </div>
+  </div>
+<!-- @ENDGUARD -->    <button id="gearBtn" class="iconbtn" onclick="openSetModal()" title="settings"><span class="gear">&#9881;</span></button>
+  </div>
+</header>
+<!-- @GUARD:IF WITH_WEB_THEMES -->
+<!-- @ENDGUARD --><!-- @GUARD:IF WITH_SENTINEL --><!-- Sentinel live alert panel: shown whenever a Sentinel watch session is
+     running, listing WHY each armed watch is (or isn't) currently flagging
+     something -- see RadarServer::appendSentinelPayload_ for the "sentinel"
+     JSON this renders (renderSentinelPanel() in the JS below). -->
+<div id="sentinelPanel">
+  <div class="sp-hd"><span class="sp-dot"></span><span>Sentinel</span>
+    <button class="sp-close" onclick="dismissSentinelPanel()" title="dismiss (reopens on a new alert, or from the Sentinel tab)">&times;</button>
+  </div>
+  <div id="sentinelMsgs"></div>
+</div>
+<!-- @ENDGUARD --><!-- settings modal (gear button) -->
+<div id="setModal" class="modal" onclick="if(event.target===this)closeSetModal()">
+  <div class="modal-card">
+    <div class="modal-hd">
+      <span class="gear">&#9881;</span><h2>Settings</h2>
+      <button class="modal-x" onclick="closeSetModal()" title="close">&times;</button>
+    </div>
+    <div class="settabs-wrap">
+    <button class="settabmore" id="setTabMoreBtn" onclick="toggleSetTabMenu(event)">
+      <span id="setTabCur">Settings</span><span class="care">&#9662;</span>
+    </button>
+    <div class="settabs" id="setTabMenu">
+      <button class="settab" data-stab="general" onclick="setSettingsTab('general')">General</button>
+      <button class="settab" data-stab="mem"  onclick="setSettingsTab('mem')">Memory</button>
+      <button class="settab" data-stab="data" onclick="setSettingsTab('data')">Data</button>
+      <button class="settab" data-stab="network" onclick="setSettingsTab('network')">Network</button>
+      <button class="settab" data-stab="scout" onclick="setSettingsTab('scout')">Scout</button>
+    </div>
+    </div>
+    <div class="setsec stab-pane" data-stab="general">
+<!-- @GUARD:IF WITH_WEB_THEMES || WITH_SENTINEL -->      <div class="netcard">
+      <div class="netcard-hd">Display</div>
+<!-- @GUARD:IF WITH_WEB_THEMES -->      <div class="setrow">
+        <span class="k">Theme</span>
+        <span class="v"><select id="webTheme" onchange="setWebTheme(this.value)">
+          <option value="">Default</option>
+          <option value="granite">Granite</option>
+          <option value="ocean">Ocean</option>
+          <option value="forest">Forest</option>
+          <option value="sunset">Sunset</option>
+          <option value="slate">Slate</option>
+          <option value="neon">Neon</option>
+          <option value="steampunk">Steampunk</option>
+          <option value="synthwave">Synthwave</option>
+          <option value="terminal">Terminal</option>
+          <option value="cyberpunk">Cyberpunk</option>
+          <option value="aurora">Aurora</option>
+        </select></span>
+      </div>
+      <div class="sethint">Dashboard colour palette. Saved to this browser only (localStorage) &mdash; other devices/browsers keep their own choice.</div>
+<!-- @ENDGUARD -->      </div>
+<!-- @ENDGUARD -->      <div class="netcard">
+      <div class="netcard-hd">Client performance</div>
+      <div class="setrow">
+        <span class="k">Poll rate</span>
+        <span class="v"><input type="range" id="pollms" min="250" max="10000" value="1000" step="250"
+               oninput="setPollMs(this.value)" onchange="savePollMs(this.value)"> <b id="pollmsL">1000</b> ms</span>
+      </div>
+      <div class="sethint">Browser poll interval for <b>/api/data</b>. Default 1000 ms, saved to NVS.</div>
+      <div class="setrow" style="margin-top:14px">
+        <span class="k">Retention</span>
+        <span class="v" title="All data is kept for the whole session by default — nothing expires and named networks are never dropped. Set a lifespan (minutes) to age out stale probes/APs if you want a rolling window. 0 = keep everything.">
+          <input type="number" id="ttlMin" min="0" max="1440" step="1" value="0" style="width:60px" onchange="setTtl()"> min &middot; 0 = keep all
+        </span>
+      </div>
+      <div class="sethint">Lifespan for WiFi probes/APs. 0 = keep everything for the session.</div>
+      <div class="setrow" style="margin-top:14px">
+        <span class="k">Heap relief</span>
+        <span class="v"><button id="clientAggBtn" class="tgl" onclick="toggleDataOpt('clientAggBtn','clientagg')" title="Primary stops folding scout WiFi traffic into its own per-MAC store — the browser builds the table instead from the same raw feed already streamed here. Trades the on-device store for heap headroom; useful on any board with a big/heavy scout roster, not just this on-device table.">Client-side WiFi aggregation</button></span>
+      </div>
+      <div class="sethint">Saves device heap when a scout with a heavy roster is linked.</div>
+      </div>
+      <div class="netcard">
+      <div class="netcard-hd">Vendors</div>
+      <div class="setrow"><span class="k">Imported entries</span><span class="v" id="ouiCount">&mdash;</span></div>
+      <div class="setrow">
+        <span class="k">Import file</span>
+        <span class="v"><button class="icobtn" onclick="document.getElementById('ouiFile').click()" title="Choose OUI file to import">&uarr; Import</button>
+          <button class="icobtn confirm" onclick="clearOui()" title="Clear imported entries">&times; Clear</button>
+          <input type="file" id="ouiFile" onchange="importOui(this)" hidden></span>
+      </div>
+      <div id="ouiStatus" class="sethint" style="min-height:1em"></div>
+      <div class="sethint">Import the full IEEE registry or a Wireshark manuf file to vendor-tag more MACs. Stored in this browser.<br>
+      Download:
+      <a href="https://standards-oui.ieee.org/oui/oui.csv" target="_blank" rel="noopener">standards-oui.ieee.org/oui/oui.csv</a>
+      &middot;
+      <a href="https://www.wireshark.org/download/automated/data/manuf" target="_blank" rel="noopener">wireshark.org &hellip; /data/manuf</a></div>
+      </div>
+    </div>
+    <div class="setsec stab-pane" data-stab="mem">
+      <div class="setsec-hd">Device memory &amp; flash</div>
+      <div class="membar-wrap">
+        <div class="lbl"><span>Heap load</span><span id="memHeapPct">&mdash;</span></div>
+        <div class="membar" id="memHeapBar"><span></span></div>
+      </div>
+      <div class="membar-wrap">
+        <div class="lbl"><span>Flash (app partition)</span><span id="memFlashPct">&mdash;</span></div>
+        <div class="membar" id="memFlashBar"><span></span></div>
+      </div>
+      <div class="statgrid" style="margin-top:12px">
+        <div><span class="k">Free heap</span><span class="v" id="memHeap">&mdash;</span></div>
+        <div><span class="k">Min free heap</span><span class="v" id="memHeapMin">&mdash;</span></div>
+        <div><span class="k">PSRAM free</span><span class="v" id="memPsram">&mdash;</span></div>
+        <div><span class="k">Sketch (flash)</span><span class="v" id="memSketch">&mdash;</span></div>
+        <div><span class="k">Records held</span><span class="v" id="memRecords">&mdash;</span></div>
+        <div id="hidDbRow" style="display:none"><span class="k">Hidden network DB</span><span class="v" id="hidDbCount">&mdash;</span></div>
+      </div>
+      <div class="setrow" style="margin-top:14px">
+        <span class="k">Flush</span>
+        <span class="v"><select id="flushTarget">
+            <option value="all">All records</option>
+          </select> <button class="icobtn" onclick="requestFlush()" title="Flush selected data">&#9654; Flush</button></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Session</span>
+        <span class="v"><button class="icobtn confirm" onclick="requestNewSession()" title="Start a new session (archives current data, clears the board)">&#8635; New session</button></span>
+      </div>
+      <div id="memStatus" class="sethint" style="min-height:1em"></div>
+      <div class="sethint"><b>Flush</b> wipes the selected data; <b>New session</b> also clears the SD snapshot + pinned target &mdash; neither can be undone.<span id="hidDbHint" style="display:none"> Recovered cloaked-AP names persist in flash across reboots.</span></div>
+    </div>
+    <div class="setsec stab-pane" data-stab="data">
+      <div class="netcard">
+      <div class="netcard-hd">Import / export</div>
+      <div class="setrow">
+        <span class="k">Snapshot file</span>
+        <span class="v"><select id="expFormat" title="What Export downloads">
+            <option value="json">JSON (current data)</option>
+          </select>
+          <button class="icobtn" onclick="exportData()" title="Export snapshot">&darr; Export</button>
+          <button class="icobtn" onclick="document.getElementById('ioFile').click()" title="Import snapshot (JSON file)">&uarr; Import</button>
+          <input type="file" id="ioFile" accept=".json,application/json" onchange="importData(this)" hidden></span>
+      </div>
+      <div id="ioStatus" class="sethint" style="min-height:1em"></div>
+      <div class="sethint">Export/import the WiFi table as JSON. Import pauses Live.</div>
+      <div class="setrow netdiv">
+        <span class="k">SD WiFi capture</span>
+        <span class="v"><button class="icobtn" onclick="loadSdWifiCapture()" title="Load a standalone SD WiFi capture into this session">&darr; Load</button>
+          <button class="icobtn" onclick="wifiAggPushNow()" title="Sync back: write this tab's WiFi aggregate to the same SD file">&#8646; Sync back</button></span>
+      </div>
+      <div class="sethint">Loads a standalone WiFi capture from SD. Pauses Live. "Sync back" writes this tab's current WiFi aggregate (loaded + anything captured since) back to the same SD file, so the device has the merged result too.</div>
+      </div>
+      <div class="netcard">
+      <div class="netcard-hd">Saved sessions (SD)</div>
+      <div id="sessSelRow" class="setrow" style="display:none">
+        <span class="k">Session</span>
+        <span class="v"><select id="sessSel" style="max-width:220px"></select>
+          <button class="icobtn" onclick="loadSelectedSession()" title="Load selected session">&darr; Load</button>
+          <button class="icobtn confirm" onclick="requestDeleteSession()" title="Delete selected session">&times; Delete</button>
+          <button class="icobtn confirm" onclick="requestDeleteAllSessions()" title="Delete all sessions">&times;&times; Delete all</button></span>
+      </div>
+      <div id="sessList" class="sethint">&mdash;</div>
+      <div class="sethint">Load reviews one offline (pauses Live). Delete/Delete all remove from the card &mdash; can't be undone.</div>
+      </div>
+      <div class="netcard">
+      <div class="netcard-hd">Evicted-record log (SD)</div>
+      <div class="setrow">
+        <span class="k">802eleven_wifi_log.csv</span>
+        <span class="v"><button class="icobtn" onclick="loadWifiLog()" title="Load the evicted-record log">&darr; Load</button>
+          <button class="icobtn confirm" onclick="clearWifiLog()" title="Clear the log">&times; Clear</button></span>
+      </div>
+      <div id="wlogStatus" class="sethint" style="min-height:1em"></div>
+      <div class="sethint">Records the in-RAM WiFi cap evicted over a long capture (see Retention above) land here instead of vanishing. Load reviews them offline, same as a saved session &mdash; RSSI avg/age aren't meaningful for replayed rows (see hint on load). Clear truncates the log once you're done with it.</div>
+      </div>
+    </div>
+    <div class="setsec stab-pane" data-stab="network">
+      <div class="netcard">
+      <div class="netcard-hd">Dashboard WiFi network</div>
+      <div class="setrow">
+        <span class="k">Network name</span>
+        <span class="v"><input type="text" id="apSsid" maxlength="32" placeholder="802Eleven"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Security</span>
+        <span class="v">
+          <label style="margin-right:14px;cursor:pointer"><input type="radio" name="apSec" value="wpa2" checked onchange="apSecChanged()"> WPA2</label>
+          <label style="cursor:pointer"><input type="radio" name="apSec" value="open" onchange="apSecChanged()"> Open</label>
+        </span>
+      </div>
+      <div class="setrow" id="apPassRow">
+        <span class="k">Password</span>
+        <span class="v"><input type="text" id="apPass" maxlength="63" placeholder="leave blank to keep current"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Visibility</span>
+        <span class="v">
+          <label style="margin-right:14px;cursor:pointer"><input type="radio" name="apVis" value="hidden" checked> Hidden</label>
+          <label style="cursor:pointer"><input type="radio" name="apVis" value="visible"> Visible</label>
+        </span>
+      </div>
+      <div class="setrow">
+        <span class="k">Apply</span>
+        <span class="v"><button class="icobtn" onclick="saveApSettings()" title="Save &amp; restart AP">&#10003; Save</button>
+          <button class="icobtn confirm" id="apResetBtn" onclick="resetApSettings()" title="Revert to default">&#8634; Reset</button></span>
+      </div>
+      <div id="apStatusMsg" class="sethint" style="min-height:1em"></div>
+      <div class="sethint">The AP clients join to reach this dashboard. Changing it <b>restarts the AP</b> &mdash; every device must rejoin.</div>
+      <div class="setrow netdiv">
+        <span class="k">Reconnect</span>
+        <span class="v"><button class="icobtn" id="apQrBtn" onclick="toggleApQr()" title="Scan to join (WiFi QR code)">QR</button></span>
+      </div>
+      <div id="apQrBox" class="apqrbox" style="display:none">
+        <button type="button" id="apQrFrame" class="qr-frame" onclick="toggleQrBlur('apQrFrame')">
+          <img id="apQrImg" alt="WiFi join QR code">
+          <span class="qr-reveal">Tap to reveal<br>(WPA2 password visible)</span>
+        </button>
+        <button type="button" class="cr-copy-btn" id="apCopyBtn" onclick="copyApPass('apCopyBtn')">Copy password</button>
+        <div class="sethint">Scan with your phone's camera app to join &mdash; works for a hidden network too, since the code carries the SSID itself.</div>
+      </div>
+      <div class="setrow netdiv">
+        <span class="k">Captive portal</span>
+        <span class="v"><button id="captiveBtn" class="tgl" onclick="toggleCaptivePortal()" title="Auto-pop the OS's captive-portal browser with an 'Open Web Portal' landing page on join. Off = clients must manually browse to the AP IP; DNS/normal browsing is unaffected either way.">Auto-open on join</button></span>
+      </div>
+      <div class="sethint">Pops a one-button "Open Web Portal" landing page when a device joins the AP -- it self-disables (this toggle flips off) the moment it's shown once, since the OS's mini-browser can't remember devices across rejoins. Flip back on here anytime. Also turn off if it's interfering with a client's normal internet DNS (e.g. while also joined to Uplink WiFi).</div>
+      </div>
+      <div class="netcard">
+      <div class="netcard-hd">Device MAC</div>
+      <div class="setrow">
+        <span class="k">AP MAC</span>
+        <span class="v"><input type="text" id="apMac" maxlength="17" placeholder="aa:bb:cc:dd:ee:ff (blank = factory)"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">STA MAC</span>
+        <span class="v"><input type="text" id="staMac" maxlength="17" placeholder="aa:bb:cc:dd:ee:ff (blank = factory)"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Link STA to AP</span>
+        <span class="v"><button id="staMacLinkBtn" class="tgl" onclick="toggleStaMacLink()" title="STA-interface MAC mirrors the AP MAC above instead of its own field">STA mirrors AP MAC</button></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Similar-MAC rand</span>
+        <span class="v"><button id="macRandBtn" class="tgl" onclick="toggleMacRand()" title="When cloning a seen device's MAC (the mac-card Actions menu, or an on-device picker), re-randomise the last 2 octets instead of reusing it verbatim">Randomise last 2 octets</button></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Apply</span>
+        <span class="v"><button class="icobtn" onclick="saveApMac()" title="Save AP MAC">&#10003; AP</button>
+          <button class="icobtn" onclick="saveStaMac()" title="Save STA MAC">&#10003; STA</button></span>
+      </div>
+      <div id="macStatusMsg" class="sethint" style="min-height:1em"></div>
+      <div class="sethint">AP MAC applies immediately (AP restarts). STA MAC takes effect on next reboot. Clone a specific seen device's MAC from its mac-card &rarr; Actions menu instead of typing one here.</div>
+      </div>
+      <div class="netcard">
+      <div class="netcard-hd">Access password</div>
+      <div class="setrow"><span class="k">Gate status</span><span class="v" id="secStatus">&mdash;</span></div>
+      <div class="setrow" id="secOldRow">
+        <span class="k">Current password</span>
+        <span class="v"><input type="password" id="secOld" autocomplete="current-password" placeholder="current password"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">New password</span>
+        <span class="v"><input type="password" id="secPass1" autocomplete="new-password" placeholder="new password"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Confirm</span>
+        <span class="v"><input type="password" id="secPass2" autocomplete="new-password" placeholder="repeat"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Apply</span>
+        <span class="v"><button class="icobtn" onclick="savePass()" title="Save password">&#10003; Save</button>
+          <button class="icobtn confirm" id="secDisableBtn" onclick="savePass('')" title="Disable gate">&#8856; Disable</button>
+          <button class="icobtn confirm" id="secReset" onclick="resetPass()" title="Revert to default">&#8634; Reset</button></span>
+      </div>
+      <div id="secStatusMsg" class="sethint" style="min-height:1em"></div>
+      <div class="sethint">Password gate for the dashboard + API. <b>Empty = off.</b> Signs out other browsers.</div>
+      </div>
+      <div class="netcard">
+      <div class="netcard-hd">Uplink WiFi</div>
+      <div class="setrow"><span class="k">Status</span><span class="v" id="staStatus">&mdash;</span></div>
+      <div class="setrow">
+        <span class="k">Network name</span>
+        <span class="v"><input type="text" id="staSsid" maxlength="32" placeholder="Home network"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Password</span>
+        <span class="v"><input type="text" id="staPass" maxlength="63" placeholder="leave blank if open, or to keep current"></span>
+      </div>
+      <div class="setrow">
+        <span class="k">Apply</span>
+        <span class="v"><button class="icobtn" onclick="saveStaSettings()" title="Connect">&#10003; Connect</button>
+          <button id="staEnBtn" class="tgl" onclick="toggleStaEnabled()">Disable</button>
+          <button class="icobtn confirm" id="staForgetBtn" onclick="forgetStaSettings()" title="Forget saved network">&#8854; Forget</button></span>
+      </div>
+      <div id="staStatusMsg" class="sethint" style="min-height:1em"></div>
+      <div class="sethint">Join an existing WiFi network alongside this board's own dashboard AP (e.g. for internet access while debugging). Independent of the AP above &mdash; both run at once.</div>
+      </div>
+    </div>
+    <div class="setsec stab-pane" data-stab="scout">
+      <div class="setsec-hd">Scout companion</div>
+      <div class="setrow">
+        <span class="k">Link status</span>
+        <span class="v" id="setScoutPill"><span class="statuspill down"><span class="dot"></span>Not detected</span></span>
+      </div>
+      <div class="setrow"><span class="k">Frames received</span><span class="v" id="setScoutFrames">&mdash;</span></div>
+      <div class="sethint">Optional 2nd board (<b>[env:scout]</b>) for continuous WiFi capture over UART, freeing this board's radio.</div>
+    </div>
+  </div>
+</div>
+<!-- Shared destructive-action confirm modal (Flush, New session, Delete
+     session, Delete all sessions) -- one popup reused for all of them,
+     matching hsDelModal's styling, instead of each having its own inline
+     two-click-confirm row. openConfirm(bodyHtml, yesLabel, onYes, extraHtml). -->
+<div id="confirmModal" class="modal" onclick="if(event.target===this)closeConfirm()">
+  <div class="modal-card">
+    <div class="modal-hd">
+      <h2>Confirm</h2>
+      <button class="modal-x" onclick="closeConfirm()" title="close">&times;</button>
+    </div>
+    <div class="setsec" style="padding:16px">
+      <div class="sethint" id="confirmModalBody" style="margin-top:0"></div>
+      <div id="confirmModalExtra" style="display:none;margin-top:10px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button class="iconbtn" onclick="closeConfirm()">Cancel</button>
+        <button class="iconbtn on" id="confirmModalBtn" style="background:#f66;border-color:#f66;color:#fff" onclick="doConfirm()">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- MAC info modal (click a MAC in the Deauths table) -->
+<div id="macModal" class="modal" onclick="if(event.target===this)closeMacInfo()">
+  <div class="modal-card">
+    <div class="modal-hd">
+      <h2 id="macModalMac" style="display:none">MAC</h2>
+      <button class="modal-x" style="margin-left:auto" onclick="closeMacInfo()" title="close">&times;</button>
+    </div>
+    <div id="macModalBody"></div>
+  </div>
+</div>
+<!-- @GUARD:IF WITH_SECURITYTOOLS --><!-- Send Frame modal (Actions -> Send frame, from a beacon's mac-info panel) -->
+<div id="sendFrameModal" class="modal" onclick="if(event.target===this)closeSendFrame()">
+  <div class="modal-card">
+    <div class="modal-hd">
+      <h2>Send frame</h2>
+      <button class="modal-x" onclick="closeSendFrame()" title="close">&times;</button>
+    </div>
+    <div id="sfBody" class="setsec"></div>
+  </div>
+</div>
+<!-- Use similar MAC modal (Actions -> Use similar MAC, AP/STA picker) -->
+<div id="similarMacModal" class="modal" onclick="if(event.target===this)closeSimilarMac()">
+  <div class="modal-card">
+    <div class="modal-hd">
+      <h2>Use similar MAC</h2>
+      <button class="modal-x" onclick="closeSimilarMac()" title="close">&times;</button>
+    </div>
+    <div id="smBody" class="setsec"></div>
+  </div>
+</div>
+<!-- Full-screen lock while a LOCAL (no-scout) send runs: the dashboard AP is
+     offline for the whole window (see openSendFrame's warning text), so this
+     is the same "own the screen, nothing clickable underneath" treatment as
+     #capruns above -- reuses its cr-* ring/label styling, own ids so the two
+     can't collide if somehow both were ever open. -->
+<div id="sfruns" class="capruns">
+  <div class="cr-ring">
+    <svg viewBox="0 0 120 120">
+      <circle class="cr-track" cx="60" cy="60" r="52"/>
+      <circle id="sfCrArc" class="cr-arc" cx="60" cy="60" r="52"/>
+    </svg>
+    <div class="cr-num"><b id="sfCrLeft">0</b><span>seconds</span></div>
+  </div>
+  <div class="cr-title" id="sfCrTitle">Send Frame in progress</div>
+  <div id="sfCrParams" class="cr-params"></div>
+  <div id="sfCrSub" class="cr-sub" style="display:none"></div>
+  <div id="sfQrWrap" class="cr-qr-wrap" style="display:none">
+    <button type="button" id="sfQrFrame" class="qr-frame" onclick="toggleQrBlur('sfQrFrame')">
+      <img id="sfQrImg" class="cr-qr" alt="Scan to rejoin this network">
+      <span class="qr-reveal">Tap to reveal<br>(WPA2 password visible)</span>
+    </button>
+    <button type="button" class="cr-copy-btn" id="sfCopyBtn" onclick="copyApPass('sfCopyBtn')">Copy password</button>
+  </div>
+</div>
+<!-- Full-screen lock while a LOCAL (no-scout) Local AP run is up: same
+     "own the screen, nothing clickable underneath" treatment as #sfruns
+     above (reuses its cr-* ring/label styling, own ids so the two can't
+     collide) -- this board's own AP is a different SSID for the run's
+     Duration, so the dashboard itself is unreachable until it ends. -->
+<div id="localapruns" class="capruns">
+  <div class="cr-ring">
+    <svg viewBox="0 0 120 120">
+      <circle class="cr-track" cx="60" cy="60" r="52"/>
+      <circle id="laCrArc" class="cr-arc" cx="60" cy="60" r="52"/>
+    </svg>
+    <div class="cr-num"><b id="laCrLeft">0</b><span>seconds</span></div>
+  </div>
+  <div class="cr-title" id="laCrTitle">Local AP in progress</div>
+  <div id="laCrParams" class="cr-params"></div>
+  <div id="laCrSub" class="cr-sub" style="display:none"></div>
+  <div id="laQrWrap" class="cr-qr-wrap" style="display:none">
+    <button type="button" id="laQrFrame" class="qr-frame" onclick="toggleQrBlur('laQrFrame')">
+      <img id="laQrImg" class="cr-qr" alt="Scan to rejoin this network">
+      <span class="qr-reveal">Tap to reveal<br>(WPA2 password visible)</span>
+    </button>
+    <button type="button" class="cr-copy-btn" id="laCopyBtn" onclick="copyApPass('laCopyBtn')">Copy password</button>
+  </div>
+</div>
+<!-- Full-screen lock while a LOCAL (no-scout) Frame Crafting run is up --
+     same "own the screen, nothing clickable underneath" treatment as
+     #sfruns above (reuses its cr-* ring/label styling, own ids so the two
+     can't collide). -->
+<div id="craftruns" class="capruns">
+  <div class="cr-ring">
+    <svg viewBox="0 0 120 120">
+      <circle class="cr-track" cx="60" cy="60" r="52"/>
+      <circle id="fcCrArc" class="cr-arc" cx="60" cy="60" r="52"/>
+    </svg>
+    <div class="cr-num"><b id="fcCrLeft">0</b><span>seconds</span></div>
+  </div>
+  <div class="cr-title" id="fcCrTitle">Frame Crafting in progress</div>
+  <div id="fcCrParams" class="cr-params"></div>
+  <div id="fcCrSub" class="cr-sub" style="display:none"></div>
+  <div id="fcQrWrap" class="cr-qr-wrap" style="display:none">
+    <button type="button" id="fcQrFrame" class="qr-frame" onclick="toggleQrBlur('fcQrFrame')">
+      <img id="fcQrImg" class="cr-qr" alt="Scan to rejoin this network">
+      <span class="qr-reveal">Tap to reveal<br>(WPA2 password visible)</span>
+    </button>
+    <button type="button" class="cr-copy-btn" id="fcCopyBtn" onclick="copyApPass('fcCopyBtn')">Copy password</button>
+  </div>
+</div>
+<!-- Full-screen lock while a LOCAL (no-scout) Frames dump run is up -- same
+     "own the screen, nothing clickable underneath" treatment as #sfruns
+     above (reuses its cr-* ring/label styling, own ids so the two can't
+     collide). The Frames Start button falls back to this when no scout is
+     linked: the primary's own radio has to leave AP mode for the window, so
+     the dashboard goes down for its duration same as a plain Capture. -->
+<div id="fdruns" class="capruns">
+  <div class="cr-ring">
+    <svg viewBox="0 0 120 120">
+      <circle class="cr-track" cx="60" cy="60" r="52"/>
+      <circle id="fdCrArc" class="cr-arc" cx="60" cy="60" r="52"/>
+    </svg>
+    <div class="cr-num"><b id="fdCrLeft">0</b><span>seconds</span></div>
+  </div>
+  <div class="cr-title" id="fdCrTitle">Frame dump in progress</div>
+  <div id="fdCrParams" class="cr-params"></div>
+  <div id="fdCrSub" class="cr-sub" style="display:none"></div>
+  <div id="fdQrWrap" class="cr-qr-wrap" style="display:none">
+    <button type="button" id="fdQrFrame" class="qr-frame" onclick="toggleQrBlur('fdQrFrame')">
+      <img id="fdQrImg" class="cr-qr" alt="Scan to rejoin this network">
+      <span class="qr-reveal">Tap to reveal<br>(WPA2 password visible)</span>
+    </button>
+    <button type="button" class="cr-copy-btn" id="fdCopyBtn" onclick="copyApPass('fdCopyBtn')">Copy password</button>
+  </div>
+</div>
+<!-- Delete-confirm modal (Authorisations tab, Handshake Captures list) --
+     replaces the old inline two-click-confirm delete button with a real
+     popup, matching macModal's card styling. -->
+<div id="hsDelModal" class="modal" onclick="if(event.target===this)closeHsDelModal()">
+  <div class="modal-card">
+    <div class="modal-hd">
+      <h2>Delete capture</h2>
+      <button class="modal-x" onclick="closeHsDelModal()" title="close">&times;</button>
+    </div>
+    <div class="setsec" style="padding:16px">
+      <div class="sethint" id="hsDelModalBody" style="margin-top:0"></div>
+      <div id="hsDelModalErr" class="sethint" style="display:none;color:#f66"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button class="iconbtn" onclick="closeHsDelModal()">Cancel</button>
+        <button class="iconbtn on" id="hsDelModalBtn" style="background:#f66;border-color:#f66;color:#fff" onclick="confirmHsDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- @ENDGUARD --><div class="tabs">
+  <button class="tab" data-v="map"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none"/></svg>MAP</button>
+  <button class="tab" data-v="devices"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="4" width="14" height="3" rx="1"/><rect x="3" y="9" width="14" height="3" rx="1"/><rect x="3" y="14" width="14" height="3" rx="1"/></svg>DEVICES <span id="hd">0</span></button>
+  <div class="tabmore-wrap wifi-only" style="display:none">
+    <button class="tabmore" id="tabMoreBtn" onclick="toggleTabMenu(event)" title="more views">&raquo;</button>
+    <div class="tabmenu" id="tabMenu">
+      <button class="tab" data-v="chan"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 10 L10 3 A7 7 0 0 1 16.5 13 Z"/><path d="M10 10 L4 6.5 A7 7 0 0 0 10 17 A7 7 0 0 0 16.5 13 Z"/></svg>CHANNELS</button>
+      <button class="tab gps-only" style="display:none" data-v="trail"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15 C6 15 6 9 9 9 S12 5 17 5"/><circle cx="3" cy="15" r="1.3" fill="currentColor" stroke="none"/><circle cx="17" cy="5" r="1.3" fill="currentColor" stroke="none"/></svg>GPS TRAIL</button>
+      <button class="tab" data-v="deauth"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L16 5.5 V10 C16 14 13.4 16.6 10 17.5 C6.6 16.6 4 14 4 10 V5.5 Z"/></svg>AUTHORISATIONS <span id="hde">0</span></button>
+<!-- @GUARD:IF WITH_SECURITYTOOLS -->      <button class="tab" data-v="localap"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="14" r="1.6" fill="currentColor" stroke="none"/><path d="M6.5 11 a5 5 0 0 1 7 0"/><path d="M3.5 8 a9.2 9.2 0 0 1 13 0"/></svg>LOCAL AP</button>
+<!-- @ENDGUARD --><!-- @GUARD:IF WITH_FRAMES && WITH_SECURITYTOOLS -->      <button class="tab" data-v="frames"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 3 v3 M4 3 h3 M16 3 v3 M16 3 h-3 M4 17 v-3 M4 17 h3 M16 17 v-3 M16 17 h-3"/></svg>FRAMES</button>
+<!-- @ENDGUARD -->      <button class="tab scout-only" data-v="scout" style="display:none"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 17 V9"/><circle cx="10" cy="6" r="2.4"/><path d="M6.5 4 a5 5 0 0 0 0 4"/><path d="M13.5 4 a5 5 0 0 1 0 4"/></svg>SCOUT</button>
+<!-- @GUARD:IF WITH_SENTINEL -->      <button class="tab sentinel-only" data-v="sentinel" style="display:none"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 C5.5 5.5 14.5 5.5 17 10 C14.5 14.5 5.5 14.5 3 10 Z"/><circle cx="10" cy="10" r="2"/></svg>SENTINEL</button>
+<!-- @ENDGUARD -->    </div>
+  </div>
+</div>
+<main>
+<div id="sidenavCard">
+  <button id="navBurger" onclick="toggleSidenav()" title="collapse / expand sidebar"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5 H17 M3 10 H17 M3 15 H17"/></svg></button>
+  <nav id="sidenav">
+    <button data-v="map" title="radar view"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none"/></svg><span class="navt">Radar</span></span></button>
+    <button data-v="devices" title="unique devices table in place of the radar"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="4" width="14" height="3" rx="1"/><rect x="3" y="9" width="14" height="3" rx="1"/><rect x="3" y="14" width="14" height="3" rx="1"/></svg><span class="navt">Devices</span></span> <b id="hd2">0</b></button>
+    <button class="wifi-only" data-v="chan" style="display:none" title="radial graph of WiFi channels in use and device counts; click a channel for its SSIDs"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 10 L10 3 A7 7 0 0 1 16.5 13 Z"/><path d="M10 10 L4 6.5 A7 7 0 0 0 10 17 A7 7 0 0 0 16.5 13 Z"/></svg><span class="navt">Channel Density</span></span></button>
+    <button class="wifi-only gps-only" data-v="trail" style="display:none" title="walked path connecting GPS-tagged sightings in time order (load a GPS session log via Settings &rarr; Data)"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15 C6 15 6 9 9 9 S12 5 17 5"/><circle cx="3" cy="15" r="1.3" fill="currentColor" stroke="none"/><circle cx="17" cy="5" r="1.3" fill="currentColor" stroke="none"/></svg><span class="navt">GPS Trail</span></span></button>
+    <button class="wifi-only" data-v="deauth" style="display:none" title="authorisation activity across the air — deauth/disassoc events, plus captured 4-way handshakes &amp; PMKID"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L16 5.5 V10 C16 14 13.4 16.6 10 17.5 C6.6 16.6 4 14 4 10 V5.5 Z"/></svg><span class="navt">Authorisations</span></span> <b id="hde2">0</b><span id="navSfDot" class="navdot" style="display:none" title="Send Frame running"></span></button>
+<!-- @GUARD:IF WITH_SECURITYTOOLS -->    <button class="wifi-only" data-v="localap" style="display:none" title="spawn a local soft-AP + captive portal"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="14" r="1.6" fill="currentColor" stroke="none"/><path d="M6.5 11 a5 5 0 0 1 7 0"/><path d="M3.5 8 a9.2 9.2 0 0 1 13 0"/></svg><span class="navt">Local AP</span></span></button>
+<!-- @ENDGUARD --><!-- @GUARD:IF WITH_FRAMES && WITH_SECURITYTOOLS -->    <button class="wifi-only" data-v="frames" style="display:none" title="live 802.11 frame dump (Scout board) + build and send a from-scratch 802.11 frame, every header field editable"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 3 v3 M4 3 h3 M16 3 v3 M16 3 h-3 M4 17 v-3 M4 17 h3 M16 17 v-3 M16 17 h-3"/></svg><span class="navt">Frames</span></span></button>
+<!-- @ENDGUARD -->    <button class="wifi-only scout-only" data-v="scout" style="display:none" title="live raw UART feed from the Scout board, plus scout link management (pause / flush)"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 17 V9"/><circle cx="10" cy="6" r="2.4"/><path d="M6.5 4 a5 5 0 0 0 0 4"/><path d="M13.5 4 a5 5 0 0 1 0 4"/></svg><span class="navt">Scout</span></span></button>
+<!-- @GUARD:IF WITH_SENTINEL -->    <button class="sentinel-only" data-v="sentinel" style="display:none" title="Deauth/Karma/Rogue watch alerts from the last (or current) Sentinel session"><span class="navl"><svg class="navic" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 C5.5 5.5 14.5 5.5 17 10 C14.5 14.5 5.5 14.5 3 10 Z"/><circle cx="10" cy="10" r="2"/></svg><span class="navt">Sentinel</span></span></button>
+<!-- @ENDGUARD -->  </nav>
+</div>
+  <section id="view-map" class="view">
+    <div class="vh"><span>PROXIMITY MAP <span class="c" id="hm">0</span></span>
+      <button id="syncBtn" class="tgl icobtn" onclick="toggleSync()" title="sync search: mirror the DEVICES-list search filter onto the radar. Off = radar shows all, table filtered independently."><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7 H5 M8 4 L5 7 L8 10"/><path d="M5 13 H15 M12 10 L15 13 L12 16"/></svg></button></div>
+    <div id="radarWrap"><canvas id="radar"></canvas><div id="tip"></div>
+      <div id="nodeMenu">
+        <button id="nmInfo" class="nmc" onclick="nodeMenuInfo()" title="show info card">&#9432;</button>
+        <button id="nmExpand" class="nmc" onclick="nodeMenuExpand()" title="expand stations on radar">&#8862;</button>
+      </div>
+      <div id="rctl">
+        <button onclick="resetView()" title="reset / fit">&#9678;</button>
+        <button id="spreadBtn" onclick="toggleSpread()" title="spread nodes so none overlap and all labels are readable">&#10021;</button>
+        <button id="ghostBtn" onclick="toggleGhosts()" title="hide ghosts: drop devices no longer present (idle/inactive) from the radar">&#9676;</button>
+        <button id="alogBtn" onclick="toggleAbsorbLog()" title="log of probes absorbed into an AP (confirmed associations). Off by default.">&#9776;</button>
+        <button id="ringLegendBtn" onclick="toggleRingLegend()" title="ring colour legend">&#9432;</button>
+        <button id="setBtn" onclick="toggleSettings()" title="radar controls">&#9881;</button>
+        <button id="fsBtn" onclick="toggleFullscreen()" title="fullscreen radar"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 3H4a1 1 0 0 0-1 1v3M13 3h3a1 1 0 0 1 1 1v3M7 17H4a1 1 0 0 1-1-1v-3M13 17h3a1 1 0 0 0 1-1v-3"/></svg></button>
+      </div>
+      <div id="ringLegend" class="hidden">
+        <div class="rlhd">RING COLOURS<button onclick="toggleRingLegend()" title="close">&times;</button></div>
+        <div class="rlrow"><span class="rlstar" style="color:#4da3ff">&#9733;</span> radar focus / target marker</div>
+        <div class="rlrow"><span class="rlring" style="border-color:#4da3ff"></span> box-selected (table filter)</div>
+        <div class="rlrow wifi-only"><span class="rlring rlring3">
+            <b style="border-color:#4dd6ff"></b><b style="border-color:#ffe14d"></b><b style="border-color:#ff9f40"></b>
+          </span> AP client-count rank (low &rarr; high)</div>
+        <div class="rlrow wifi-only"><span class="rlring" style="border-color:var(--whid);border-style:dashed"></span> cloaked network, name unknown</div>
+        <div class="rlrow wifi-only"><span class="rlring" style="border-color:var(--whid)"></span> cloaked network, name recovered</div>
+      </div>
+      <div id="rband" title="Radar filter. Pick what the slider filters on (SIG / AGE / CNT / CH); default SIG = signal strength. Mouse-wheel over this bar adjusts the slider. Radar only.">
+        <button id="bandModeBtn" onclick="toggleBandModes()" title="choose what to filter on"><span id="bandModeCur">SIG</span> &#9662;</button>
+        <span id="bandModes">
+          <button data-bm="sig" class="on" onclick="setBandMode('sig')" title="filter by SIGNAL: with a target, RSSI band (+/- dB) around it; with none, keep devices at or above -N dBm">SIG</button>
+          <button data-bm="seen" onclick="setBandMode('seen')" title="filter by SEEN: hide devices last seen more than N seconds ago (recency). Ceiling = oldest sighting.">SEEN</button>
+          <button data-bm="age" onclick="setBandMode('age')" title="filter by AGE: keep devices alive at least N seconds (accumulative lifetime = last seen − first seen). Ceiling = longest-lived record.">AGE</button>
+          <button data-bm="cnt" onclick="setBandMode('cnt')" title="filter by COUNT: hide devices with fewer than N received frames/adverts">CNT</button>
+          <button data-bm="ch" class="wifi-only" onclick="setBandMode('ch')" title="filter by CHANNEL: show only devices heard on channel N (0 = all)">CH</button>
+          <button data-bm="gps" class="gps-only" style="display:none" onclick="setBandMode('gps')" title="filter by GPS DISTANCE: keep devices within N metres of the GPS focus point (set one via a device's Actions menu). Only appears when the loaded data carries GPS coordinates (GPS session log replay).">GPS</button>
+        </span>
+        <span id="bandLbl">signal range &plusmn;</span>
+        <input type="range" id="band" min="0" max="100" value="100" step="1"
+               oninput="onBandInput()">
+        <b id="bandL">100</b><span id="bandUnit">dB</span>
+      </div>
+      <div id="alog" class="hidden">
+        <div class="alhd">
+          <span class="alhdTitle">ASSOCIATED PROBES <span id="nalog">0</span></span>
+          <span class="alhdBtns">
+            <button id="alogMaxBtn" onclick="toggleAbsorbLogMax()" title="maximise">&#10530;</button>
+            <button onclick="toggleAbsorbLog()" title="close">&times;</button>
+          </span>
+        </div>
+        <div id="alist"></div>
+      </div>
+      <div id="rmodal" class="hidden">
+       <div class="rmbox">
+        <div class="rmhd">RADAR CONTROLS
+          <button id="rmclose" onclick="closeSettings()" title="close (unlock zoom)">&times;</button></div>
+      <div class="rmsec first">Display</div>
+      <div class="rlegend">
+        <button id="lname" class="tgl on" onclick="tgl('lname')" title="show device names on the radar">Show names</button>
+        <button id="lmac" class="tgl on" onclick="tgl('lmac')" title="show MAC addresses on the radar">Show MACs</button>
+        <button id="sweepBtn" class="tgl" onclick="toggleSweep()" title="rotating radar sweep -- nodes glow as the beam detects them, like a real radar (off by default)">Sweep</button>
+      </div>
+      <div class="rmsec">Filters</div>
+      <div class="rlegend">
+        <label title="only plot nodes whose frame/advert count (cnt) is at least this">Min count
+          <input type="range" id="mincnt" min="1" max="50" value="1" step="1"
+                 oninput="mincntL.textContent=this.value;drawRadar(lastDevs)">
+          <b id="mincntL">1</b></label>
+        <button onclick="resetFilters()" title="restore default filters: min count 1, expire idle 60 s">Reset</button>
+      </div>
+      <div class="rmsec wifi-only">Stations</div>
+      <div class="rlegend wifi-only">
+        <button id="autoExpandBtn" class="tgl" onclick="toggleAutoExpand()" title="auto-explode every AP that has associated clients into its long-press station view; grows live as new stations join. Turning this off collapses everything back">Auto-expand stations</button>
+      </div>
+      <div class="rlegend"><span class="muted">rings = RSSI (dBm), strong toward
+        centre; 1 antenna &rarr; no real bearing, angle = stable per-MAC slot</span></div>
+       </div>
+      </div>
+    </div>
+    <div id="rkey" title="click a swatch to hide/show that class on the radar">
+      <span class="wifi-only" style="display:none" data-rk="wbeacon" onclick="toggleKey('wbeacon',this)"><span class="dot" style="background:var(--pub)"></span> beacon (AP)</span>
+      <span class="wifi-only" style="display:none" data-rk="wbcnCli" onclick="toggleKey('wbcnCli',this)"><span class="dot" style="background:var(--cli)"></span> beacon + clients</span>
+      <span class="wifi-only" style="display:none" data-rk="wprobe" onclick="toggleKey('wprobe',this)"><span class="dot" style="background:var(--rnd)"></span> probe (client)</span>
+      <span class="wifi-only" style="display:none" data-rk="whidden" onclick="toggleKey('whidden',this)" title="cloaked APs -- click to hide/show"><span class="dot ghostdot"></span> hidden network</span>
+    </div>
+  </section>
+  <section id="view-devices" class="view">
+    <div class="vh"><span id="devTitle">
+      <button id="devSearchBtn" class="cbtn icobtn" onclick="toggleDevSearch()" title="search devices — plain text matches name/SSID; a value with colons (aa:bb:cc) matches MAC; field:value filters e.g. vendor:netgear  rssi:>-60  type:rnd  kind:beacon  ch:6  sta:>0 (space = AND)"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><line x1="13.5" y1="13.5" x2="18" y2="18"/></svg></button>
+      <button id="syncDevBtn" class="tgl icobtn" onclick="toggleSyncDev()" title="sync from radar: show only the devices currently plotted on the proximity map (applies the radar's filters — min-count, signal band, kind, etc. — to this list)."><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7 H5 M8 4 L5 7 L8 10"/><path d="M5 13 H15 M12 10 L15 13 L12 16"/></svg></button>
+      <span id="wifiDevCtl">
+        <button id="wifiFilterBtn" class="tgl icobtn" onclick="toggleWifiFilters()" title="filter by frame kind — BEACON / STA / PROBE"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5v5L9 17v-6.5z"/></svg></button>
+        <button id="expandAllBtn" class="tgl icobtn" onclick="toggleExpandAllStations()" title="expand every AP's associated stations at once"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8 L10 12 L14 8"/></svg></button>
+      </span>
+
+      <span class="vstyle">
+        <button id="vwToggle" class="tgl icobtn" onclick="toggleDevView()" title="card view - compact tiles that wrap to fit the screen, no horizontal scroll"><svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor"><rect x="3" y="3" width="14" height="6" rx="1.5"/><rect x="3" y="11" width="14" height="6" rx="1.5"/></svg></button>
+      </span></span>
+    </div>
+    <div id="devSearchPop" class="dsearch" style="display:none">
+      <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><line x1="13.5" y1="13.5" x2="18" y2="18"/></svg>
+      <input id="devSearch" type="text" spellcheck="false" autocomplete="off" oninput="renderDevices();if(syncSearch)drawRadar(lastDevs);quickTick()"
+             placeholder="name  ·  aa:bb:cc  ·  vendor:netgear  rssi:>-60  kind:beacon  sta:>0  ch:6">
+      <button id="devSearchClr" onclick="clearDevSearch()" title="clear search">&times;</button>
+    </div>
+    <div id="wifiFilterPop" class="wfilter" style="display:none">
+      <button data-wk="beacon" class="tgl on" onclick="toggleWifiKind('beacon')" title="show beacon frames from access points with NO associated stations">BEACON</button>
+      <button data-wk="sta" class="tgl on" onclick="toggleWifiKind('sta')" title="show beacon frames from access points that HAVE associated stations (clients)">STA</button>
+      <button data-wk="probe" class="tgl" onclick="toggleWifiKind('probe')" title="show probe-request frames (clients searching for a named network)">PROBE</button>
+      <span class="wfilter-sep"></span>
+      <button data-wk="hid" class="tgl" onclick="toggleWifiKind('hid')" title="show APs still cloaked (no name recovered yet)">HIDDEN</button>
+      <button data-wk="unc" class="tgl on" onclick="toggleWifiKind('unc')" title="show APs that were cloaked and have since had their name recovered">UNCLOAKED</button>
+      <span class="wfilter-sep"></span>
+      <button id="wifiFilterClr" class="icobtn" onclick="resetWifiFilters()" title="reset filters — show everything">&times;</button>
+    </div>
+    <div id="dfbar" class="dfbar" style="display:none"></div>
+    <div id="dtWrap" class="scroll"><table id="dt"><thead><tr>
+      <th>REF</th><th data-k="mac">MAC</th><th data-k="type">TYPE</th><th data-k="rssi">RSSI</th>
+      <th data-k="age">AGE</th>
+      <th data-k="life">ALIVE</th><th data-k="vendor">VENDOR</th><th data-k="name">NAME</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div id="dcards" class="cards" style="display:none"></div>
+  </section>
+  <section id="view-scout" class="view wifi-only">
+    <div class="vh scout-hd"><span>SCOUT</span>
+      <div class="scout-subtabs">
+        <button id="scoutSubFeed" class="on" onclick="scoutSubTab('feed')">Feed</button>
+        <button id="scoutSubMgmt" onclick="scoutSubTab('mgmt')">Management</button>
+      </div>
+      <span id="scoutViewPill" class="statuspill down scout-vh-pill"><span class="dot"></span>Not detected</span>
+    </div>
+    <div id="scoutSubFeedPane">
+      <div class="scout-feedbar">
+        <span id="scoutStat" class="muted">&mdash;</span>
+        <button class="cbtn" id="scoutPause" title="pause / resume auto-scroll" onclick="toggleScoutScroll(this)">&#9208;</button>
+      </div>
+      <div id="scoutFeed" class="scoutfeed"></div>
+    </div>
+    <div id="scoutSubMgmtPane" class="scout-mgmt" style="display:none">
+      <div class="scout-mcard">
+        <span class="scm-ic"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a6 6 0 0 1 12 0M7 10a3 3 0 0 1 6 0"/><circle cx="10" cy="10" r="1.2" fill="currentColor" stroke="none"/></svg></span>
+        <span class="scm-body">
+          <span class="scm-title">Link</span>
+          <span class="scm-sub">Idle by default -- the scout stays out of promiscuous mode until armed. Stopped means it's a bare, cheap UART pipe, not sniffing.</span>
+        </span>
+        <span class="scm-act"><button id="scoutMgmtPauseBtn" class="tgl" onclick="toggleScoutPause('scoutMgmtPauseBtn')">Pause link</button></span>
+      </div>
+      <div class="scout-mcard">
+        <span class="scm-ic"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h12M4 10h12M4 15h8"/></svg></span>
+        <span class="scm-body">
+          <span class="scm-title">Buffers</span>
+          <span class="scm-sub">Drop whatever's still queued in the scout's TX buffer and this side's stale RX bytes, then resync on a clean line.</span>
+        </span>
+        <span class="scm-act"><button id="scoutMgmtFlushBtn" class="iconbtn" onclick="flushScout('scoutMgmtFlushBtn')">Flush</button></span>
+      </div>
+      <div class="sethint">Channel set, frame types, DATA-frame capture and band pausing stay in the WiFi capture popover's Scout tab.</div>
+    </div>
+  </section>
+  <section id="view-chan" class="view wifi-only">
+    <div class="vh"><span>CHANNEL&nbsp;DENSITY <span class="c" id="hcn">0</span></span>
+      <span id="chanBandTabs" class="captabs" style="display:none;max-width:170px;margin:0 0 0 10px" title="Dual-band scout linked — pick which radio's channels to chart.">
+        <button id="cbtab24" class="captab on" onclick="setChanBand('24')">2.4GHz</button>
+        <button id="cbtab5"  class="captab"    onclick="setChanBand('5')">5GHz</button>
+      </span>
+      <span class="muted" style="font-size:12px">tap a channel for its SSIDs</span>
+    </div>
+    <div id="chanWrap">
+      <canvas id="chanCanvas"></canvas>
+      <div id="chanDetail"><span class="cd-hint">No channel selected &mdash; tap a wedge to list its networks.</span></div>
+    </div>
+  </section>
+  <section id="view-trail" class="view wifi-only gps-only">
+    <div class="vh"><span>GPS TRAIL <span class="c" id="htr" style="margin-left:10px">0</span></span>
+      <span class="muted" style="font-size:12px;margin-left:14px">GPS-tagged sightings</span>
+      <span class="muted" id="trailStart" style="font-size:12px;margin-left:auto"></span>
+    </div>
+    <div id="trailWrap">
+      <div class="scroll" style="flex:1"><table id="trailTbl"><thead><tr>
+        <th data-k="ssid">NAME / SSID</th><th data-k="kind">KIND</th><th data-k="rssi">RSSI</th>
+        <th data-k="lat">LAT</th><th data-k="lon">LON</th><th>MAP</th>
+        <th data-k="_dist" title="distance from the previous sighting">DIST</th>
+        <th data-k="vendor">VENDOR</th>
+      </tr></thead><tbody></tbody></table></div>
+      <div class="muted" id="trailEnd" style="font-size:12px;text-align:right;padding:4px 2px 0"></div>
+      <div id="trailEmpty" style="display:none">No GPS-tagged sightings loaded &mdash; load a GPS session log via Settings &rarr; Data.</div>
+    </div>
+  </section>
+  <section id="view-deauth" class="view wifi-only">
+    <div class="vh"><span>AUTHORISATIONS</span>
+      <button id="wifiFilterBtn2" class="tgl icobtn" style="margin-left:auto" onclick="toggleWifiFilters('wifiFilterPop2','wifiFilterBtn2')" title="filter by target-AP kind — BEACON / STA / HIDDEN / UNCLOAKED (shared with the Devices filter)"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14l-5.5 6.5v5L9 17v-6.5z"/></svg></button>
+    </div>
+    <div id="wifiFilterPop2" class="wfilter" style="display:none">
+      <button data-wk="beacon" class="tgl on" onclick="toggleWifiKind('beacon')" title="show deauths targeting an AP with NO associated stations">BEACON</button>
+      <button data-wk="sta" class="tgl on" onclick="toggleWifiKind('sta')" title="show deauths targeting an AP that HAS associated stations (clients)">STA</button>
+      <span class="wfilter-sep"></span>
+      <button data-wk="hid" class="tgl" onclick="toggleWifiKind('hid')" title="show deauths targeting an AP still cloaked (no name recovered yet)">HIDDEN</button>
+      <button data-wk="unc" class="tgl on" onclick="toggleWifiKind('unc')" title="show deauths targeting an AP that was cloaked and has since had its name recovered">UNCLOAKED</button>
+      <span class="wfilter-sep"></span>
+      <button id="wifiFilterClr2" class="icobtn" onclick="resetWifiFilters()" title="reset filters — show everything">&times;</button>
+    </div>
+    <div class="authbody">
+    <div id="authSum" class="authsum"></div>
+    <div id="deauthSec">
+    <div class="authsub"><span>DEAUTH&nbsp;/ DISASSOC <span class="c" id="hdc">0</span></span></div>
+    <div class="scroll"><table id="det"><thead><tr>
+      <th data-k="age">AGE</th><th data-k="type">TYPE</th><th data-k="src">SRC (tx)</th>
+      <th data-k="dst">DST (target)</th><th data-k="bssid">TARGET AP</th>
+      <th data-k="reason">REASON</th><th data-k="cnt">CNT</th><th data-k="rssi">RSSI</th>
+    </tr></thead><tbody></tbody></table></div>
+    </div>
+    <div id="deauthEmpty" class="muted authempty" style="display:none">No deauth/disassoc frames seen.</div>
+<!-- @GUARD:IF WITH_SECURITYTOOLS -->    <div id="hsSec">
+    <div class="authsub"><span>HANDSHAKES&nbsp;/ PMKID <span class="c" id="hhs">0</span></span>
+      <span class="authsub-actions">
+        <span id="hsRamSec" class="hsrarm">
+          <span id="hsrArmedPill" class="statuspill down"><span class="dot"></span>Off</span>
+          <button id="hsrCapBtn" class="tgl icobtn" onclick="toggleHsRamCapture()" title="stage raw beacon/EAPOL bytes in RAM so a handshake/PMKID can be downloaded straight off this board, even with no SD card — lost on Clear/reboot">Arm</button>
+        </span>
+        <button id="pmkOnlyBtn" class="tgl icobtn" onclick="togglePmkOnly()" title="show only rows with a captured PMKID (crackable without a full handshake)">PMKID only</button>
+      </span>
+    </div>
+    <div class="scroll"><table id="hst"><thead><tr>
+      <th data-k="age">AGE</th><th data-k="client">CLIENT</th><th data-k="bssid">BSSID (SSID)</th>
+      <th>PROGRESS</th><th>PMKID</th><th data-k="rssi">RSSI</th><th data-k="cnt">CNT</th><th>PCAP</th>
+    </tr></thead><tbody></tbody></table></div>
+    </div>
+    <div id="hsEmpty" class="muted authempty" style="display:none">No handshake/PMKID activity yet.</div>
+    <div id="hsdSec">
+    <div class="authsub"><span>CAPTURES (SD) <span class="c" id="hsdc">0</span></span>
+      <button class="icobtn" onclick="loadHsFiles()" title="refresh the file list">Refresh</button>
+    </div>
+    <div class="scroll"><table id="hsdt"><thead><tr>
+      <th>FILE</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+    </div>
+    <div id="hsdEmpty" class="muted authempty" style="display:none">No SD card, or no captures saved yet.</div>
+<!-- @ENDGUARD -->  </div>
+  </section>
+<!-- @GUARD:IF WITH_SENTINEL -->  <section id="view-sentinel" class="view sentinel-only">
+    <div class="vh"><span>SENTINEL <span class="muted" style="font-size:12px;font-weight:400" id="sentinelViewStatus"></span></span>
+      <button class="icobtn" onclick="requestSentinelClearAll()" title="Wipe every watch's accumulated alert state (deauth map, karma session, rogue hits) without stopping the session">Clear all</button>
+    </div>
+    <div id="sentinelViewMsgs"></div>
+  </section>
+<!-- @ENDGUARD --><!-- @GUARD:IF WITH_SECURITYTOOLS -->  <section id="view-localap" class="view wifi-only">
+    <div class="vh"><span>LOCAL AP &amp; CAPTIVE PORTAL</span>
+    </div>
+    <div class="setsec">
+      <div class="authsum" id="localApStatusBar">
+        <div class="stattile"><span class="v" id="localApScoutPill"><span class="statuspill down"><span class="dot"></span>Not detected</span></span><span class="l">Scout board</span></div>
+        <div class="stattile"><span class="v" id="localApStatus">Idle</span><span class="l">Status</span></div>
+      </div>
+
+      <!-- Network/Portal are visually locked (not hidden) while a run is up
+           -- see .running in the stylesheet -- since the combined layout
+           keeps every pane on screen at once; Start/Stop is a single icon
+           toggle in the SSID bar (#localApGoBtn) instead of a separate
+           Start block + Stop row (see localApSyncActiveUi). -->
+      <div id="localApSetupWrap" style="margin-top:16px">
+        <div class="localaptabs" id="localApTabs">
+          <button class="localaptab on" data-rtab="network" onclick="setLocalApTab('network')">Setup</button>
+          <button class="localaptab" id="localApPortalTab" data-rtab="portal" style="display:none" onclick="setLocalApTab('portal')">Captive Portal</button>
+          <button class="localaptab lap-tab-empty" id="localApCapturedTab" data-rtab="captured" onclick="setLocalApTab('captured')">Captured <span class="badge" id="localApFieldCount2">(0)</span></button>
+          <button class="localaptab lap-tab-empty" id="localApConnTab" data-rtab="connections" onclick="setLocalApTab('connections')">Connections <span class="badge" id="localApStaCount2">(0)</span></button>
+        </div>
+
+        <!-- SSID + security + duration + the portal-customise switch all live
+             in one box now (used to be split Network/Launch tabs) -- only
+             #localApConfigFields locks while running (see .running below),
+             never the Run/Stop control itself. -->
+        <div class="localapsub-pane" data-rtab="network">
+          <div class="lap-hd"><span class="dot" style="background:var(--accent)"></span>Setup</div>
+          <div id="localApConfigFields">
+            <div class="lap-bar">
+              <svg class="lap-bar-ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg>
+              <input type="text" id="localApSsid" maxlength="32" placeholder="Beacon SSID (e.g. Guest Network)">
+              <div class="lap-seg" id="localApSecSeg">
+                <button type="button" class="lap-seg-opt on" data-sec="open" onclick="localApSetSec('open')">Open</button>
+                <button type="button" class="lap-seg-opt" data-sec="wpa2" onclick="localApSetSec('wpa2')">WPA2</button>
+                <span class="lap-seg-bezel"></span>
+              </div>
+              <input type="hidden" id="localApSecValue" value="open">
+              <button id="localApGoBtn" class="lap-go-icon" onclick="localApToggle()" title="Start Local AP" aria-label="Start Local AP">
+                <svg id="localApGoIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+            </div>
+            <div class="setrow lap-pass-row" id="localApSecPassRow" style="display:none">
+              <span class="k">WPA2 password</span>
+              <span class="v"><input type="text" id="localApSecPass" maxlength="63" placeholder="8-63 characters"></span>
+            </div>
+            <div class="lap-row2">
+              <div class="setrow lap-duration">
+                <span class="k">Duration</span>
+                <span class="v"><input type="range" id="localApSecs" min="30" max="1800" value="120" step="30"
+                      oninput="localApSecsInput()"> <b id="localApSecsL">2m</b></span>
+              </div>
+              <div class="setrow lap-toggle-row">
+                <span class="k">Hidden network</span>
+                <span class="v"><label class="lap-toggle"><input type="checkbox" id="localApHidden"><span class="lap-toggle-bezel"></span></label></span>
+              </div>
+              <div class="setrow lap-toggle-row">
+                <span class="k">Customise portal page</span>
+                <span class="v"><label class="lap-toggle"><input type="checkbox" id="localApPortalToggle" onchange="localApPortalToggleChanged()"><span class="lap-toggle-bezel"></span></label></span>
+              </div>
+            </div>
+          </div>
+          <div id="localApMsg" class="sethint" style="min-height:1em"></div>
+        </div>
+
+        <!-- Hidden until "Customise portal page" is switched on -- the AP
+             always serves a portal page (LOCALAP_DEFAULT_HTML if never
+             customised); this box is only for editing it, not a feature
+             on/off switch. -->
+        <div class="localapsub-pane" id="localApPortalPane" data-rtab="portal" style="display:none">
+          <div class="lap-hd"><span class="dot" style="background:var(--muted)"></span>Captive Portal</div>
+          <div class="setrow">
+            <span class="k">Upload page</span>
+            <span class="v"><button onclick="document.getElementById('localApHtmlFile').click()">&#8593;&nbsp;Choose file&hellip;</button>
+              <input type="file" id="localApHtmlFile" accept=".html,.htm,text/html" onchange="localApImportHtml(this)" hidden></span>
+          </div>
+          <div id="localApImportStatus" class="sethint" style="min-height:1em"></div>
+          <div class="setrow localap-html">
+            <span class="k">Portal page</span>
+            <span class="v"><textarea id="localApPortalHtml" spellcheck="false"
+                  style="font-family:monospace;font-size:12px;background:var(--bg);color:var(--fg);border:1px solid var(--line)"></textarea></span>
+          </div>
+        </div>
+
+        <div class="localapsub-pane" data-rtab="captured" style="display:none">
+          <div class="lap-hd"><span class="lap-ic lap-dot" id="localApCapturedDot"></span>Captured submissions</div>
+          <div class="setsec-hd">Captured events <span id="localApFieldCount">(0)</span></div>
+          <div id="localApFieldList">Nothing captured yet — start the AP above to begin.</div>
+        </div>
+
+        <!-- A bare STA join (no form ever submitted) is logged separately
+             from a real portal-form submission -- see localApIsConnectRow. -->
+        <div class="localapsub-pane" data-rtab="connections" style="display:none">
+          <div class="lap-hd"><span class="lap-ic lap-dot" id="localApConnDot"></span>Connections</div>
+          <div class="setsec-hd">Stations joined <span id="localApStaCount">(0)</span></div>
+          <div id="localApConnList">No connections yet — start the AP above to begin.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+<!-- @GUARD:IF WITH_FRAMES -->  <section id="view-frames" class="view wifi-only">
+    <div class="vh"><span>FRAMES</span>
+      <span id="framesStat" class="muted" style="margin-left:auto;font-size:12px">&mdash;</span>
+    </div>
+    <div id="framesTabWrap">
+      <div class="localaptabs" id="framesTabs">
+        <button class="localaptab on" data-rtab="capture" onclick="setFramesTab('capture')">Capture</button>
+        <button class="localaptab" data-rtab="craft" onclick="setFramesTab('craft')">Craft</button>
+      </div>
+      <div class="localapsub-pane" data-rtab="capture">
+        <div class="vh" style="padding:0 0 8px">
+          <button class="iconbtn" id="framesClearBtn" title="clear screen — drops the buffered rows shown here; the live stream keeps running" onclick="clearFramesFeed()">Clear</button>
+          <button class="cbtn" id="framesPause" title="pause / resume auto-scroll" onclick="toggleFramesScroll(this)">&#9208;</button>
+        </div>
+        <div class="frameFilters">
+          <button id="ffBeacon" class="tgl on" onclick="toggleFrameKind('ffBeacon')">Beacon</button>
+          <button id="ffProbe"  class="tgl on" onclick="toggleFrameKind('ffProbe')">Probe</button>
+          <button id="ffAssoc"  class="tgl on" onclick="toggleFrameKind('ffAssoc')">Assoc</button>
+          <button id="ffDeauth" class="tgl on" onclick="toggleFrameKind('ffDeauth')">Deauth</button>
+          <button id="ffData"   class="tgl on" onclick="toggleFrameKind('ffData')" title="unencrypted (open) DATA frames only — nothing readable in an encrypted one">Data <span class="muted">(open only)</span></button>
+          <input id="framesSearch" class="ffsearch" type="text" spellcheck="false" autocomplete="off"
+                 placeholder="search…" oninput="onFrameSearch(this.value)"
+                 title="matches mac/dst/bssid, SSID and the open-DATA ascii dump — plain substring, no server round trip">
+          <button id="framesSearchClr" onclick="clearFrameSearch()" title="clear search">&times;</button>
+          <span class="framesModeRow" style="margin-left:auto;display:flex;align-items:center;gap:4px">
+            <button id="framesModeSimple" class="tgl on" onclick="setFramesMode('simple')" title="small live ring buffer, pushed continuously as frames arrive">Simple</button>
+            <button id="framesModeDetail" class="tgl" onclick="setFramesMode('detail')" title="buffers every matching frame — full raw bytes included — in memory for the run, then delivers + frees it all in one drain when the run ends. Local radio only (no scout).">Detailed</button>
+          </span>
+          <span class="framesSecsRow" style="display:none;align-items:center;gap:6px">
+            <span class="muted" style="font-size:12px">No scout — dumps on this board's own radio (AP offline for the window)</span>
+            <input type="range" id="framesSecs" min="5" max="60" value="30" step="5"
+                   oninput="document.getElementById('framesSecsLbl').textContent=fmtDur(+this.value)">
+            <b id="framesSecsLbl">30s</b>
+          </span>
+          <button id="framesArmBtn" class="tgl" onclick="toggleFramesArm()" title="start/stop the raw frame dump — independent of the Scout link pause">Start</button>
+        </div>
+        <div id="framesFeed" class="scoutfeed"></div>
+      </div>
+      <div class="localapsub-pane" data-rtab="craft" style="display:none">
+<!-- @ENDGUARD -->    <div class="setsec fc-setsec">
+      <div class="authsum">
+        <div class="stattile"><span class="v" id="fcStatusPill"><span class="statuspill down"><span class="dot"></span>Idle</span></span><span class="l">Status</span></div>
+        <div class="stattile"><span class="v" id="fcTally">0 / 0</span><span class="l">Sent / OK</span></div>
+      </div>
+
+      <div class="fc-anatomy-wrap">
+        <div class="fc-anatomy" id="fcAnatomy"></div>
+        <div class="fc-anatomy-meta" id="fcAnatomyMeta"></div>
+      </div>
+
+      <div class="lap-hd" style="margin-top:22px"><span class="dot" style="background:var(--accent)"></span>Frame type</div>
+      <div class="fc-chips" id="fcPresets"></div>
+      <div class="fc-addr-grid" style="margin-top:14px;max-width:420px">
+        <div class="fc-addr-field"><label for="fcCat">Category</label>
+          <select id="fcCat" onchange="onFcCatChange()">
+            <option value="0">Management (0)</option>
+            <option value="1">Control (1)</option>
+            <option value="2">Data (2)</option>
+          </select></div>
+        <div class="fc-addr-field"><label for="fcSub">Subtype</label>
+          <select id="fcSub" onchange="onFcRawChange()"></select></div>
+      </div>
+      <div class="sethint" id="fcTypeHint" style="min-height:1em"></div>
+
+      <div id="fcIePanel" style="display:none">
+        <div class="lap-hd fc-sec"><span class="dot" style="background:var(--muted)"></span>SSID + information elements</div>
+        <div class="sethint">Auto-built body for Beacon/Probe-Req/Probe-Resp -- toggle which IEs ride along, override a declared length for malformed-frame testing, or pick a preset/custom payload.</div>
+        <div id="fcIeRows"></div>
+      </div>
+
+      <div class="lap-hd fc-sec"><span class="dot" style="background:var(--muted)"></span>Addressing</div>
+      <div class="fc-addr-grid">
+        <div class="fc-addr-field"><label for="fcA1">Addr1 -- destination</label>
+          <input type="text" id="fcA1" placeholder="aa:bb:cc:dd:ee:ff" value="ff:ff:ff:ff:ff:ff"></div>
+        <div class="fc-addr-field" id="fcA2Field"><label for="fcA2">Addr2 -- source</label>
+          <input type="text" id="fcA2" placeholder="aa:bb:cc:dd:ee:ff" oninput="fcSyncAddr3Default();fcRenderAnatomy()">
+          <div class="fc-cap">This board's own MAC if left blank on transmit.</div></div>
+        <div class="fc-addr-field" id="fcA3Field"><label for="fcA3">Addr3 -- BSSID</label>
+          <input type="text" id="fcA3" placeholder="aa:bb:cc:dd:ee:ff" oninput="fcAddr3Touched=true;fcRenderAnatomy()">
+          <div class="fc-cap">Blank omits the field from the built frame.</div></div>
+        <div class="fc-addr-field" id="fcA4Field"><label for="fcA4">Addr4</label>
+          <input type="text" id="fcA4" placeholder="aa:bb:cc:dd:ee:ff" oninput="fcRenderAnatomy()">
+          <div class="fc-cap">WDS only (toDS + fromDS). Blank omits it.</div></div>
+      </div>
+
+      <div class="lap-hd fc-sec"><span class="dot" style="background:var(--muted)"></span>Flags <span class="fc-byteval" id="fcFlagsByte">0x00</span></div>
+      <div class="fc-bits" id="fcFlags">
+        <button type="button" class="fc-bit" data-flag="fcOrder" data-bit="7" title="Strictly Ordered" onclick="toggleFcFlag(this)"><b>b7</b>OR</button>
+        <button type="button" class="fc-bit" data-flag="fcProt" data-bit="6" title="Protected Frame" onclick="toggleFcFlag(this)"><b>b6</b>PR</button>
+        <button type="button" class="fc-bit" data-flag="fcMData" data-bit="5" title="More Data" onclick="toggleFcFlag(this)"><b>b5</b>MD</button>
+        <button type="button" class="fc-bit" data-flag="fcPwr" data-bit="4" title="Power Mgmt" onclick="toggleFcFlag(this)"><b>b4</b>PM</button>
+        <button type="button" class="fc-bit" data-flag="fcRetry" data-bit="3" title="Retry" onclick="toggleFcFlag(this)"><b>b3</b>RT</button>
+        <button type="button" class="fc-bit" data-flag="fcMFrag" data-bit="2" title="More Fragments" onclick="toggleFcFlag(this)"><b>b2</b>MF</button>
+        <button type="button" class="fc-bit" data-flag="fcFromDs" data-bit="1" title="From DS" onclick="toggleFcFlag(this)"><b>b1</b>FD</button>
+        <button type="button" class="fc-bit" data-flag="fcToDs" data-bit="0" title="To DS" onclick="toggleFcFlag(this)"><b>b0</b>TD</button>
+      </div>
+      <div class="sethint">Frame Control, octet 2, MSB to LSB -- click a bit to flip it.</div>
+
+      <div class="lap-hd fc-sec"><span class="dot" style="background:var(--muted)"></span>Duration, sequence, QoS, raw payload</div>
+      <div class="setrow"><span class="k">Duration/ID (802.11, &#181;s)</span><span class="v">
+        <input type="number" id="fcDur" value="0" min="0" max="65535"></span></div>
+      <div class="setrow" id="fcSeqRow"><span class="k">Sequence</span><span class="v">
+        <input type="number" id="fcSeq" min="0" max="4095" placeholder="blank = omit" oninput="fcRenderAnatomy()"></span></div>
+      <div class="setrow" id="fcQosRow"><span class="k">QoS control</span><span class="v">
+        <input type="number" id="fcQos" min="0" max="65535" placeholder="blank = omit" oninput="fcRenderAnatomy()"></span></div>
+      <div class="setrow" id="fcBodyRow"><span class="k">Payload (hex)</span><span class="v">
+        <div id="fcBodyPresets" style="display:none;margin-bottom:6px">
+          <select id="fcBodyPresetSel" onchange="fcApplyBodyPreset(this)" style="max-width:100%">
+            <option value="">-- preset --</option>
+          </select>
+        </div>
+        <textarea id="fcBody" rows="3" placeholder="hex bytes, e.g. 0201" style="width:100%;font-family:monospace" oninput="fcSanitizeBody(this);fcRenderAnatomy()"></textarea>
+        <label class="fc-cap" style="display:inline-block;margin-top:4px;cursor:pointer">
+          Upload file as payload...
+          <input type="file" id="fcBodyFile" style="display:none" onchange="fcLoadBodyFile(this)">
+        </label></span></div>
+
+      <div class="lap-hd fc-sec"><span class="dot" style="background:var(--accent)"></span>Wire preview</div>
+      <div class="sethint">Exact bytes buildRawFrame() assembles right now, updated live.</div>
+      <div class="fc-hexdump" id="fcHexDump"></div>
+
+      <div class="lap-hd fc-sec"><span class="dot" style="background:var(--accent)"></span>Run</div>
+      <div class="fc-run-bar">
+        <div class="setrow"><span class="k">Channel</span><span class="v">
+          <input type="number" id="fcChannel" value="1" min="1" max="13"></span></div>
+        <div class="setrow"><span class="k">Interval</span><span class="v">
+          <input type="number" id="fcInterval" value="200" min="50" max="10000"> ms</span></div>
+        <div class="setrow" id="fcSecsRow"><span class="k">Send duration</span><span class="v">
+          <input type="range" id="fcSecs" min="5" max="60" value="15" step="5"
+                 oninput="document.getElementById('fcSecsLbl').textContent=fmtDur(+this.value)">
+          <b id="fcSecsLbl">15s</b></span></div>
+        <button id="fcGoBtn" class="lap-go-icon" onclick="toggleFrameCraft()" title="Start Frame Crafting" aria-label="Start Frame Crafting">
+          <svg id="fcGoIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+      </div>
+      <div class="sethint" id="fcStatus" style="min-height:1em"></div>
+    </div>
+<!-- @GUARD:IF WITH_FRAMES -->    </div>
+    </div>
+<!-- @ENDGUARD -->  </section>
+<!-- @ENDGUARD --></main>
+<div id="capruns" class="capruns">
+  <div class="cr-ring">
+    <svg viewBox="0 0 120 120">
+      <circle class="cr-track" cx="60" cy="60" r="52"/>
+      <circle id="crArc" class="cr-arc" cx="60" cy="60" r="52"/>
+    </svg>
+    <div class="cr-num"><b id="crLeft">0</b><span>seconds</span></div>
+  </div>
+  <div class="cr-title" id="crTitle">WiFi&nbsp;capture in progress</div>
+  <div id="crParams" class="cr-params"></div>
+  <div id="crSub" class="cr-sub" style="display:none"></div>
+  <div id="capQrWrap" class="cr-qr-wrap" style="display:none">
+    <button type="button" id="capQrFrame" class="qr-frame" onclick="toggleQrBlur('capQrFrame')">
+      <img id="capQrImg" class="cr-qr" alt="Scan to rejoin this network">
+      <span class="qr-reveal">Tap to reveal<br>(WPA2 password visible)</span>
+    </button>
+    <button type="button" class="cr-copy-btn" id="capCopyBtn" onclick="copyApPass('capCopyBtn')">Copy password</button>
+  </div>
+</div>
+<!-- Persistent "lost the AP" overlay -- distinct from #capruns above (which
+     only covers the timed-capture WINDOW itself). Shown any time the socket
+     fails to reconnect for a while, whatever the cause (this capture's hop
+     ended but the phone's OS didn't auto-rejoin a hidden net, walked out of
+     range, etc) -- see wsFailStreak/showApLost in the script below. Reuses
+     the AP-join QR (/api/network/apqr) -- rejoining 802Eleven itself, never
+     the Settings > Uplink STA network. -->
+<div id="aplost" class="capruns">
+  <button type="button" class="cr-close" onclick="dismissApLost()" title="Close (view cached results while disconnected)" aria-label="Close">&times;</button>
+  <div class="cr-title" style="color:#e2b93b">Reconnecting to 802Eleven&hellip;</div>
+  <div class="cr-sub">This device dropped off 802Eleven's own WiFi &mdash; scan or copy below to rejoin.<br>
+    The dashboard resumes on its own the moment you're back on.</div>
+  <div class="cr-qr-wrap">
+    <button type="button" id="aplostQrFrame" class="qr-frame" onclick="toggleQrBlur('aplostQrFrame')">
+      <img id="aplostQrImg" class="cr-qr" alt="Scan to rejoin 802Eleven">
+      <span class="qr-reveal">Tap to reveal<br>(WPA2 password visible)</span>
+    </button>
+    <button type="button" class="cr-copy-btn" id="aplostCopyBtn" onclick="copyApPass('aplostCopyBtn')">Copy password</button>
+  </div>
+</div>
+<script src="view-select.js"></script>
+<script src="mock-api.js"></script>
+<script src="env-select.js"></script>
+<script src="app.js"></script>
+</body></html>

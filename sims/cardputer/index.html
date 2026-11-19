@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>802Eleven Cardputer sim</title>
+<style>
+  :root {
+    --case:   #5e5e66;
+    --case-dk:#4d4d54;
+    --key:    #1a1a1c;
+    --key-lo: #222224;
+    --orange: #e2652c;
+    --blue:   #5b7fc4;
+    --green:  #2fa87c;
+    --ink:    #e4e4e8;
+  }
+  body {
+    background:#111; color:#ccc; font-family:"Segoe UI",Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:14px; padding:24px 0 40px;
+  }
+  .hint {
+    width:760px; box-sizing:border-box; background:var(--case-dk); border-radius:10px;
+    padding:10px 16px; display:flex; flex-direction:column; gap:6px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .hint .row { display:flex; align-items:baseline; gap:8px; font-size:12px; color:#b8b8bd; }
+  .hint .row .label { flex:0 0 92px; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:#8a8a92; }
+  .hint kbd {
+    display:inline-block; font-family:monospace; font-size:11px; color:var(--ink);
+    background:var(--key); border-radius:4px; padding:1px 6px; margin:0 1px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.1);
+  }
+  .hint .note { font-size:11px; color:#75757c; font-style:italic; }
+
+  /* -------------------------------------------------------------------
+     Cardputer ADV chassis mock -- purely decorative CSS/HTML around the
+     same #lcd canvas the WASM module already draws into unmodified. See
+     C:\Users\Ed\Downloads\Cardputer\m5stack_cardputer_adv_esp32_s3_5.webp
+     for the reference photo this is styled after (legend strip printed
+     above each row of physical keycaps, orange = Fn-layer glyphs, blue
+     "Aa" caps-lock cap, green "opt", black "ok").
+  ------------------------------------------------------------------- */
+  .device {
+    width: 760px; background: var(--case); border-radius: 22px;
+    padding: 18px 20px 22px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+
+  .topstrip { display:flex; align-items:stretch; gap:14px; margin-bottom:14px; }
+
+  .brand {
+    width:150px; border-radius:10px; position:relative;
+    display:flex; flex-direction:column; justify-content:center; padding:8px 10px;
+  }
+  .brand .corner { position:absolute; width:14px; height:14px; border:2px solid var(--blue); opacity:0.6; }
+  .brand .corner.tl { top:4px; left:4px; border-right:none; border-bottom:none; }
+  .brand .corner.br { bottom:4px; right:4px; border-left:none; border-top:none; }
+  .brand .small { font-size:11px; letter-spacing:2px; color:#9a9aa0; }
+  .brand .big   { font-size:26px; font-weight:800; letter-spacing:1px; color:var(--ink); }
+  .brand .mic   { margin-top:10px; width:18px; height:18px; border-radius:50%; background:var(--orange);
+                   display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; }
+
+  .screenbay {
+    flex:1; background:#101012; border-radius:10px; padding:10px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  /* Backing store is rendered at 3x the logical 240x135 (see the ctx.scale(3,3)
+     call below) and downsampled by the browser to this CSS size -- crisp
+     antialiased text instead of a nearest-neighbour blow-up of a tiny canvas. */
+  #lcd { width:400px; height:225px; background:#000; display:block; }
+
+  .module {
+    width:150px; border-radius:10px; background:#3c3c41; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .module .m5 { font-size:22px; font-weight:800; color:#7a7a82; letter-spacing:1px; transform:rotate(90deg); }
+  .module .dots { position:absolute; top:6px; left:6px; display:flex; gap:3px; flex-wrap:wrap; width:22px; }
+  .module .dots span { width:4px; height:4px; border-radius:50%; display:block; }
+
+  .screws { display:flex; justify-content:space-between; padding:0 4px 12px; }
+  .screw { width:16px; height:16px; border-radius:50%; background:var(--case-dk);
+           box-shadow: inset 0 0 0 2px #565660, inset 2px 2px 3px rgba(0,0,0,0.35); }
+
+  /* keyboard: one legend row (printed labels) + one keycap row per row of
+     the real board, 14 columns throughout so every column lines up. */
+  .kbrow { display:grid; grid-template-columns: repeat(14, 1fr); gap:4px; margin-bottom:3px; }
+  .legend { font-size:11px; text-align:center; padding:2px 0; border-radius:4px; color:var(--ink); }
+  .legend .lo { display:block; font-size:8px; color:#8a8a92; }
+  /* Directional (Fn-layer) glyphs on ;/,/./,/  -- solid orange triangle wedge
+     + center dot, same pictogram the real Cardputer prints on its arrow-key
+     row (not a boxed unicode arrow character). Drawn with clip-path, points
+     up by default, rotated per direction. */
+  .legend .arrow { display:block; width:13px; height:11px; margin:1px auto 0; position:relative; }
+  .legend .arrow::before {
+    content:""; position:absolute; inset:0; background:var(--orange);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  }
+  .legend .arrow::after {
+    content:""; position:absolute; width:2.5px; height:2.5px; border-radius:50%;
+    background:#141416; left:50%; top:66%; transform:translate(-50%,-50%);
+  }
+  .legend .arrow.left  { transform:rotate(-90deg); }
+  .legend .arrow.down  { transform:rotate(180deg); }
+  .legend .arrow.right { transform:rotate(90deg); }
+  .legend.tag { color:#fff; font-weight:700; }
+  .legend.orange { background:var(--orange); }
+  .legend.blue   { background:var(--blue); color:#fff; }
+  .legend.green  { background:var(--green); color:#fff; }
+  .legend.ok     { background:#141416; color:#fff; }
+  .kbrow.keys { margin-bottom:10px; }
+  .key {
+    height:16px; border-radius:6px; background:var(--key);
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.15);
+    transition: background 80ms, transform 80ms;
+  }
+  .key.pressed { background: var(--orange); transform: translateY(1px); box-shadow:none; }
+  .legend[data-key], .key[data-key] { cursor:pointer; user-select:none; }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="topstrip">
+    <div class="brand">
+      <span class="corner tl"></span><span class="corner br"></span>
+      <div class="small">CARDPUTER</div>
+      <div class="big">ADV</div>
+      <div class="mic">&#127908;</div>
+    </div>
+    <!-- Backing store 3x the logical 240x135 M5Canvas resolution -- see the
+         ctx.scale(3,3) call below and the #lcd CSS comment. -->
+    <div class="screenbay"><canvas id="lcd" width="720" height="405"></canvas></div>
+    <div class="module">
+      <div class="dots" id="moduleDots"></div>
+      <div class="m5">M5 STAMP</div>
+    </div>
+  </div>
+
+  <div class="screws"><div class="screw"></div><div class="screw"></div></div>
+
+  <!-- Row 1: esc / numbers / del -->
+  <div class="kbrow">
+    <div class="legend tag orange" data-key="esc">esc</div>
+    <div class="legend" data-key="1">1<span class="lo">!</span></div>
+    <div class="legend" data-key="2">2<span class="lo">@</span></div>
+    <div class="legend" data-key="3">3<span class="lo">#</span></div>
+    <div class="legend" data-key="4">4<span class="lo">$</span></div>
+    <div class="legend" data-key="5">5<span class="lo">%</span></div>
+    <div class="legend" data-key="6">6<span class="lo">^</span></div>
+    <div class="legend" data-key="7">7<span class="lo">&amp;</span></div>
+    <div class="legend" data-key="8">8<span class="lo">*</span></div>
+    <div class="legend" data-key="9">9<span class="lo">(</span></div>
+    <div class="legend" data-key="0">0<span class="lo">)</span></div>
+    <div class="legend" data-key="-">-<span class="lo">_</span></div>
+    <div class="legend" data-key="=">=<span class="lo">+</span></div>
+    <div class="legend tag orange" data-key="del">&#9003;</div>
+  </div>
+  <div class="kbrow keys">
+    <div class="key" data-key="esc"></div><div class="key" data-key="1"></div><div class="key" data-key="2"></div><div class="key" data-key="3"></div>
+    <div class="key" data-key="4"></div><div class="key" data-key="5"></div><div class="key" data-key="6"></div><div class="key" data-key="7"></div>
+    <div class="key" data-key="8"></div><div class="key" data-key="9"></div><div class="key" data-key="0"></div><div class="key" data-key="-"></div>
+    <div class="key" data-key="="></div><div class="key" data-key="del"></div>
+  </div>
+
+  <!-- Row 2: tab / QWERTY / brackets -->
+  <div class="kbrow">
+    <div class="legend" data-key="tab">tab</div>
+    <div class="legend" data-key="q">Q</div><div class="legend" data-key="w">W</div><div class="legend" data-key="e">E</div><div class="legend" data-key="r">R</div>
+    <div class="legend" data-key="t">T</div><div class="legend" data-key="y">Y</div><div class="legend" data-key="u">U</div><div class="legend" data-key="i">I</div>
+    <div class="legend" data-key="o">O</div><div class="legend" data-key="p">P</div>
+    <div class="legend" data-key="[">[<span class="lo">{</span></div>
+    <div class="legend" data-key="]">]<span class="lo">}</span></div>
+    <div class="legend" data-key="\">\<span class="lo">|</span></div>
+  </div>
+  <div class="kbrow keys">
+    <div class="key" data-key="tab"></div>
+    <div class="key" data-key="q"></div><div class="key" data-key="w"></div><div class="key" data-key="e"></div><div class="key" data-key="r"></div>
+    <div class="key" data-key="t"></div><div class="key" data-key="y"></div><div class="key" data-key="u"></div><div class="key" data-key="i"></div>
+    <div class="key" data-key="o"></div><div class="key" data-key="p"></div><div class="key" data-key="["></div><div class="key" data-key="]"></div>
+    <div class="key" data-key="\"></div>
+  </div>
+
+  <!-- Row 3: fn / Aa / ASDF... / ok -->
+  <div class="kbrow">
+    <div class="legend tag orange">fn</div>
+    <div class="legend tag blue">Aa</div>
+    <div class="legend" data-key="a">A</div><div class="legend" data-key="s">S</div><div class="legend" data-key="d">D</div><div class="legend" data-key="f">F</div>
+    <div class="legend" data-key="g">G</div><div class="legend" data-key="h">H</div><div class="legend" data-key="j">J</div><div class="legend" data-key="k">K</div>
+    <div class="legend" data-key="l">L</div>
+    <div class="legend" data-key=";">;<span class="arrow up"></span></div>
+    <div class="legend" data-key="'">'<span class="lo">"</span></div>
+    <div class="legend tag ok" data-key="ok">ok</div>
+  </div>
+  <div class="kbrow keys">
+    <div class="key"></div><div class="key"></div>
+    <div class="key" data-key="a"></div><div class="key" data-key="s"></div><div class="key" data-key="d"></div><div class="key" data-key="f"></div>
+    <div class="key" data-key="g"></div><div class="key" data-key="h"></div><div class="key" data-key="j"></div><div class="key" data-key="k"></div>
+    <div class="key" data-key="l"></div><div class="key" data-key=";"></div><div class="key" data-key="'"></div>
+    <div class="key" data-key="ok"></div>
+  </div>
+
+  <!-- Row 4: ctrl / opt / alt / ZXCV... / space -->
+  <div class="kbrow">
+    <div class="legend">ctrl</div>
+    <div class="legend tag green" data-key="opt">opt</div>
+    <div class="legend">alt</div>
+    <div class="legend" data-key="z">Z</div><div class="legend" data-key="x">X</div><div class="legend" data-key="c">C</div><div class="legend" data-key="v">V</div>
+    <div class="legend" data-key="b">B</div><div class="legend" data-key="n">N</div><div class="legend" data-key="m">M</div>
+    <div class="legend" data-key="left">,<span class="arrow left"></span></div>
+    <div class="legend" data-key=".">.<span class="arrow down"></span></div>
+    <div class="legend" data-key="right">/<span class="arrow right"></span></div>
+    <div class="legend" data-key="space">space</div>
+  </div>
+  <div class="kbrow keys">
+    <div class="key"></div><div class="key" data-key="opt"></div><div class="key"></div>
+    <div class="key" data-key="z"></div><div class="key" data-key="x"></div><div class="key" data-key="c"></div><div class="key" data-key="v"></div>
+    <div class="key" data-key="b"></div><div class="key" data-key="n"></div><div class="key" data-key="m"></div>
+    <div class="key" data-key="left"></div><div class="key" data-key="."></div><div class="key" data-key="right"></div>
+    <div class="key" data-key="space"></div>
+  </div>
+</div>
+
+<div class="hint">
+  <div class="row"><span class="label">Menu</span><kbd>&larr;</kbd><kbd>&rarr;</kbd> move &nbsp; <kbd>ENTER</kbd> select</div>
+  <div class="row"><span class="label">Inside a tile</span><kbd>&uarr;</kbd><kbd>&darr;</kbd> row &nbsp; <kbd>&larr;</kbd><kbd>&rarr;</kbd> adjust &nbsp; <kbd>ESC</kbd> back &nbsp; <kbd>TAB</kbd> panes (Settings)</div>
+  <div class="row"><span class="label">Text entry</span>type letters/digits directly &nbsp; <kbd>Backspace</kbd> delete &nbsp; <kbd>Alt</kbd>+<kbd>O</kbd> = OPT</div>
+  <div class="note">Open devtools console for other tiles' ENTER output.</div>
+</div>
+
+<script>
+  (function(){
+    var colors = ['#e2652c','#33518f','#2fa87c','#c94b4b','#e2c22c','#8a8a92'];
+    var el = document.getElementById('moduleDots');
+    for (var i = 0; i < 10; i++) {
+      var d = document.createElement('span');
+      d.style.background = colors[i % colors.length];
+      el.appendChild(d);
+    }
+  })();
+
+  function flashKey(name) {
+    document.querySelectorAll('[data-key="' + name + '"]').forEach(function (el) {
+      el.classList.add('pressed');
+      setTimeout(function () { el.classList.remove('pressed'); }, 120);
+    });
+  }
+
+  var lcdCtx = document.getElementById('lcd').getContext('2d');
+  lcdCtx.scale(3, 3);
+
+  var Module = {
+    lcdCtx: lcdCtx,
+    rgb565: function (c) {
+      var r = (c >> 11) & 0x1F, g = (c >> 5) & 0x3F, b = c & 0x1F;
+      return 'rgb(' + ((r * 527 + 23) >> 6) + ',' + ((g * 259 + 33) >> 6) + ',' + ((b * 527 + 23) >> 6) + ')';
+    },
+    onRuntimeInitialized: function () {
+      Module.ccall('sim_init', null, [], []);
+      setInterval(function () { Module.ccall('sim_tick', null, [], []); }, 150);
+    },
+  };
+
+  function pressChar(c) { Module.ccall('sim_key_char', null, ['number'], [c.charCodeAt(0)]); }
+
+  var NAMED_KEY_ACTIONS = {
+    esc:   function () { pressChar('`'); },
+    del:   function () { Module.ccall('sim_key_del', null, [], []); },
+    tab:   function () { Module.ccall('sim_key_tab', null, [], []); },
+    ok:    function () { Module.ccall('sim_key_enter', null, [], []); },
+    opt:   function () { Module.ccall('sim_key_opt', null, [], []); },
+    left:  function () { pressChar(','); },
+    right: function () { pressChar('/'); },
+    space: function () { Module.ccall('sim_key_space', null, [], []); },
+  };
+
+  document.querySelector('.device').addEventListener('click', function (e) {
+    var el = e.target.closest('[data-key]');
+    if (!el) return;
+    var name = el.dataset.key;
+    var action = NAMED_KEY_ACTIONS[name];
+    if (action) action(); else pressChar(name);
+    flashKey(name);
+    Module.ccall('sim_poll', null, [], [], { async: true });
+  });
+
+  window.addEventListener('keydown', function (e) {
+    if (e.repeat) { e.preventDefault(); return; }
+    if (e.altKey && (e.key === 'o' || e.key === 'O')) {
+      Module.ccall('sim_key_opt', null, [], []); flashKey('opt');
+      e.preventDefault();
+      Module.ccall('sim_poll', null, [], [], { async: true });
+      return;
+    }
+    switch (e.key) {
+      case 'ArrowLeft':  pressChar(','); flashKey('left'); break;
+      case 'ArrowRight': pressChar('/'); flashKey('right'); break;
+      case 'ArrowUp':    pressChar(';'); break;
+      case 'ArrowDown':  pressChar('.'); break;
+      case 'Enter':      Module.ccall('sim_key_enter', null, [], []); flashKey('ok'); break;
+      case 'Tab':        e.preventDefault(); Module.ccall('sim_key_tab', null, [], []); flashKey('tab'); break;
+      case 'Escape':     pressChar('`'); flashKey('esc'); break;
+      case 'Backspace':  Module.ccall('sim_key_del', null, [], []); flashKey('del'); break;
+      case ' ':          Module.ccall('sim_key_space', null, [], []); break;
+      default:
+        if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+        pressChar(e.key);
+        break;
+    }
+    e.preventDefault();
+    Module.ccall('sim_poll', null, [], [], { async: true });
+  });
+</script>
+<script src="sim.js"></script>
+</body>
+</html>
