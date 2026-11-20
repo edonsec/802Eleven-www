@@ -99,5 +99,33 @@
         "sha256": "b95f5e597e3f2b89f22c3627e690b3acfb12af37145f933415a7a074b5511034"
       }
     ]
+  },
+  {
+    "id": "802eleven-scout-s3-v0.0.1",
+    "label": "802Eleven - Scout ESP32-S3 v0.0.1",
+    "chip": "esp32-s3",
+    "role": "scout",
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware/802eleven/scout/firmware.factory.bin",
+        "sha256": "dbf0149f1ca41132b85934c21c2fb746d6c4ce68bf9359b23fbf860cab9b8b8a"
+      }
+    ]
+  },
+  {
+    "id": "802eleven-scout-c5-v0.0.1",
+    "label": "802Eleven - Scout ESP32-C5 v0.0.1",
+    "chip": "esp32-c5",
+    "role": "scout",
+    "files": [
+      {
+        "name": "firmware.factory.bin",
+        "address": "0x0",
+        "url": "firmware/802eleven/scout-c5/firmware.factory.bin",
+        "sha256": "52217104378233c8bd399b865f17a17474bf2ef6036aafe4b0b53f4c97166c45"
+      }
+    ]
   }
 ]
